@@ -1,0 +1,327 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  zOS Workflow Definition - Baseline Testing Framework
+  
+  This workflow demonstrates:
+  - Parameter handling and variable substitution
+  - Multi-step JCL execution
+  - USS script integration
+  - Python script execution
+  - Conditional logic and error handling
+  
+  Upload this to USS and register with zOSMF Workflows
+-->
+<workflow xmlns="http://www.ibm.com/xmlns/prod/zosmf/workflow/v1">
+    
+    <!-- Workflow Metadata -->
+    <workflowInfo>
+        <workflowID>BASELINE_WORKFLOW_TEST</workflowID>
+        <workflowDescription>Baseline zOS Workflow for Testing Multiple Technologies</workflowDescription>
+        <workflowVersion>1.0.0</workflowVersion>
+        <vendor>Custom Development</vendor>
+        <category>Testing</category>
+    </workflowInfo>
+    
+    <!-- Global Variables and Parameters -->
+    <variable name="WORKFLOW_OWNER" scope="instance">
+        <label>Workflow Owner User ID</label>
+        <abstract>The user ID that will own the workflow execution</abstract>
+        <description>Specify the TSO user ID that will be used for job submission and file access</description>
+        <category>Required</category>
+        <string valueMustBeChoice="false" multiLine="false">
+            <minLength>1</minLength>
+            <maxLength>8</maxLength>
+            <default>${instance-owner}</default>
+        </string>
+    </variable>
+    
+    <variable name="JOB_PREFIX" scope="instance">
+        <label>Job Name Prefix</label>
+        <abstract>Prefix for all submitted jobs</abstract>
+        <description>First 3-4 characters to prefix all job names for identification</description>
+        <category>Required</category>
+        <string valueMustBeChoice="false" multiLine="false">
+            <minLength>3</minLength>
+            <maxLength>4</maxLength>
+            <default>TEST</default>
+        </string>
+    </variable>
+    
+    <variable name="HLQ" scope="instance">
+        <label>High Level Qualifier</label>
+        <abstract>Dataset high level qualifier</abstract>
+        <description>High level qualifier for all datasets created during workflow</description>
+        <category>Required</category>
+        <string valueMustBeChoice="false" multiLine="false">
+            <minLength>1</minLength>
+            <maxLength>8</maxLength>
+            <default>${instance-WORKFLOW_OWNER}</default>
+        </string>
+    </variable>
+    
+    <variable name="USS_WORK_DIR" scope="instance">
+        <label>USS Working Directory</label>
+        <abstract>USS directory for workflow files</abstract>
+        <description>Full path to USS directory where workflow files will be stored</description>
+        <category>Required</category>
+        <string valueMustBeChoice="false" multiLine="false">
+            <minLength>1</minLength>
+            <maxLength>255</maxLength>
+            <default>/u/${instance-WORKFLOW_OWNER}/workflow</default>
+        </string>
+    </variable>
+    
+    <variable name="ENVIRONMENT" scope="instance">
+        <label>Target Environment</label>
+        <abstract>Environment type for workflow execution</abstract>
+        <description>Select the target environment for workflow execution</description>
+        <category>Required</category>
+        <string valueMustBeChoice="true" multiLine="false">
+            <choice>DEV</choice>
+            <choice>TEST</choice>
+            <choice>PROD</choice>
+            <default>TEST</default>
+        </string>
+    </variable>
+    
+    <variable name="PYTHON_ENABLED" scope="instance">
+        <label>Enable Python Processing</label>
+        <abstract>Whether to execute Python scripts</abstract>
+        <description>Enable or disable Python script execution in the workflow</description>
+        <category>Optional</category>
+        <boolean>
+            <default>true</default>
+        </boolean>
+    </variable>
+    
+    <!-- Workflow Steps -->
+    <step name="step1" optional="false">
+        <title>Initialize Environment and Validate Parameters</title>
+        <description>
+            This step validates the input parameters and sets up the basic environment
+            for the workflow execution. It creates necessary USS directories and 
+            validates dataset naming conventions.
+        </description>
+        
+        <step name="step1a" optional="false">
+            <title>Validate Input Parameters</title>
+            <description>Validate all required parameters are provided and meet requirements</description>
+            
+            <instructions substitution="true">
+                <p>Validating workflow parameters:</p>
+                <ul>
+                    <li>Workflow Owner: ${instance-WORKFLOW_OWNER}</li>
+                    <li>Job Prefix: ${instance-JOB_PREFIX}</li>
+                    <li>HLQ: ${instance-HLQ}</li>
+                    <li>USS Work Dir: ${instance-USS_WORK_DIR}</li>
+                    <li>Environment: ${instance-ENVIRONMENT}</li>
+                    <li>Python Enabled: ${instance-PYTHON_ENABLED}</li>
+                </ul>
+                <p>Review the parameters above and proceed if they are correct.</p>
+            </instructions>
+            
+            <weight>1</weight>
+            <skills>System Programmer</skills>
+            <autoEnable>true</autoEnable>
+            <canMarkAsFailed>false</canMarkAsFailed>
+        </step>
+        
+        <step name="step1b" optional="false">
+            <title>Setup USS Environment</title>
+            <description>Create USS directories and set permissions</description>
+            
+            <instructions substitution="true">
+                <p>Setting up USS environment in: ${instance-USS_WORK_DIR}</p>
+                <p>This step will create the necessary USS directories and copy required files.</p>
+            </instructions>
+            
+            <weight>2</weight>
+            <skills>System Programmer</skills>
+            <autoEnable>true</autoEnable>
+            <canMarkAsFailed>true</canMarkAsFailed>
+            
+            <step name="step1b1" optional="false">
+                <title>Create USS Directories</title>
+                <description>Create the working directory structure</description>
+                
+                <instructions substitution="true">
+                    <p>Creating USS directory structure</p>
+                </instructions>
+                
+                <weight>1</weight>
+                <skills>System Programmer</skills>
+                <autoEnable>true</autoEnable>
+                <canMarkAsFailed>true</canMarkAsFailed>
+                
+                <template>
+                    <fileTemplate substitution="true">
+                        <unix-script>
+                            <file-encoding>UTF-8</file-encoding>
+                            <record-format>lf</record-format>
+                        </unix-script>
+                    </fileTemplate>
+                    <saveAsUnixFile substitution="true">${instance-USS_WORK_DIR}/scripts/setup_dirs.sh</saveAsUnixFile>
+                </template>
+            </step>
+        </step>
+    </step>
+    
+    <step name="step2" optional="false">
+        <title>Execute JCL Jobs</title>
+        <description>
+            This step demonstrates multi-step JCL execution with parameter substitution.
+            It includes dataset creation, data processing, and cleanup operations.
+        </description>
+        
+        <step name="step2a" optional="false">
+            <title>Submit Dataset Creation Job</title>
+            <description>Create required datasets for the workflow</description>
+            
+            <instructions substitution="true">
+                <p>Submitting JCL to create datasets with HLQ: ${instance-HLQ}</p>
+                <p>This job will allocate temporary datasets needed for processing.</p>
+            </instructions>
+            
+            <weight>3</weight>
+            <skills>System Programmer</skills>
+            <autoEnable>true</autoEnable>
+            <canMarkAsFailed>true</canMarkAsFailed>
+            
+            <template>
+                <fileTemplate substitution="true">
+                    <jcl-unix-script>
+                        <file-encoding>UTF-8</file-encoding>
+                        <record-format>fb</record-format>
+                        <record-length>80</record-length>
+                    </jcl-unix-script>
+                </fileTemplate>
+                <saveAsUnixFile substitution="true">${instance-USS_WORK_DIR}/jcl/create_datasets.jcl</saveAsUnixFile>
+                <submitAs maxRc="4">JCL</submitAs>
+            </template>
+        </step>
+        
+        <step name="step2b" optional="false">
+            <title>Submit Data Processing Job</title>
+            <description>Process data using COBOL or utilities</description>
+            
+            <instructions substitution="true">
+                <p>Submitting data processing job for environment: ${instance-ENVIRONMENT}</p>
+                <p>This job will demonstrate conditional JCL execution based on parameters.</p>
+            </instructions>
+            
+            <weight>4</weight>
+            <skills>System Programmer</skills>
+            <autoEnable>true</autoEnable>
+            <canMarkAsFailed>true</canMarkAsFailed>
+            
+            <template>
+                <fileTemplate substitution="true">
+                    <jcl-unix-script>
+                        <file-encoding>UTF-8</file-encoding>
+                        <record-format>fb</record-format>
+                        <record-length>80</record-length>
+                    </jcl-unix-script>
+                </fileTemplate>
+                <saveAsUnixFile substitution="true">${instance-USS_WORK_DIR}/jcl/process_data.jcl</saveAsUnixFile>
+                <submitAs maxRc="4">JCL</submitAs>
+            </template>
+        </step>
+    </step>
+    
+    <step name="step3" optional="true">
+        <title>Execute Python Processing</title>
+        <description>
+            This step demonstrates Python integration with zOS workflows.
+            It includes data analysis, file processing, and API interactions.
+        </description>
+        <condition>
+            <expression><![CDATA[${instance-PYTHON_ENABLED} == true]]></expression>
+        </condition>
+        
+        <step name="step3a" optional="false">
+            <title>Run Python Data Analysis</title>
+            <description>Execute Python script for data analysis</description>
+            
+            <instructions substitution="true">
+                <p>Running Python data analysis script</p>
+                <p>This will process data created in the previous JCL steps.</p>
+            </instructions>
+            
+            <weight>3</weight>
+            <skills>System Programmer</skills>
+            <autoEnable>true</autoEnable>
+            <canMarkAsFailed>true</canMarkAsFailed>
+            
+            <template>
+                <fileTemplate substitution="true">
+                    <unix-script>
+                        <file-encoding>UTF-8</file-encoding>
+                        <record-format>lf</record-format>
+                    </unix-script>
+                </fileTemplate>
+                <saveAsUnixFile substitution="true">${instance-USS_WORK_DIR}/scripts/run_python.sh</saveAsUnixFile>
+            </template>
+        </step>
+    </step>
+    
+    <step name="step4" optional="false">
+        <title>Cleanup and Validation</title>
+        <description>
+            Final step to validate results and clean up temporary resources.
+            This includes checking job outputs and removing temporary datasets.
+        </description>
+        
+        <step name="step4a" optional="false">
+            <title>Validate Results</title>
+            <description>Check all job outputs and validate successful completion</description>
+            
+            <instructions substitution="true">
+                <p>Validating workflow execution results</p>
+                <p>Checking job outputs and generated files for successful completion.</p>
+            </instructions>
+            
+            <weight>2</weight>
+            <skills>System Programmer</skills>
+            <autoEnable>true</autoEnable>
+            <canMarkAsFailed>false</canMarkAsFailed>
+            
+            <template>
+                <fileTemplate substitution="true">
+                    <unix-script>
+                        <file-encoding>UTF-8</file-encoding>
+                        <record-format>lf</record-format>
+                    </unix-script>
+                </fileTemplate>
+                <saveAsUnixFile substitution="true">${instance-USS_WORK_DIR}/scripts/validate_results.sh</saveAsUnixFile>
+            </template>
+        </step>
+        
+        <step name="step4b" optional="true">
+            <title>Cleanup Temporary Resources</title>
+            <description>Remove temporary datasets and files</description>
+            
+            <instructions substitution="true">
+                <p>Cleaning up temporary datasets and files</p>
+                <p>This will remove temporary datasets created during workflow execution.</p>
+            </instructions>
+            
+            <weight>1</weight>
+            <skills>System Programmer</skills>
+            <autoEnable>true</autoEnable>
+            <canMarkAsFailed>false</canMarkAsFailed>
+            
+            <template>
+                <fileTemplate substitution="true">
+                    <jcl-unix-script>
+                        <file-encoding>UTF-8</file-encoding>
+                        <record-format>fb</record-format>
+                        <record-length>80</record-length>
+                    </jcl-unix-script>
+                </fileTemplate>
+                <saveAsUnixFile substitution="true">${instance-USS_WORK_DIR}/jcl/cleanup.jcl</saveAsUnixFile>
+                <submitAs maxRc="8">JCL</submitAs>
+            </template>
+        </step>
+    </step>
+    
+</workflow>
