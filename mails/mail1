@@ -1,0 +1,29 @@
+Subject: CICS DB2ENTRY rollout – Wave 3 completed, Wave 4 next (pink)
+
+Hi all,
+
+A short status note now that **Wave 3 is complete** across the LQ01CIZ* estate.
+
+### Where we’ve landed
+
+* **TX66 / HBPA / RSIR**: Rollout finished; peak-hour checks show protected-entry threads in place and **PCT_REUSE ~99%** on fully covered regions, with **DEALLOC/PGM_END** near zero and stable/improved **CLASS1_CPU** at like-for-like volume.
+* **RS7P**: Sitting at roughly **~44% reuse** overall (as expected given its current coverage mix). This should climb as we extend to the remaining regions.
+
+### What’s next – **Wave 4 (pink in the plan)**
+
+* Extend coverage for **RSER / RSEV / RS7P** to the remaining regions so their reuse aligns with the Wave-3 set (target ~99% once fully covered).
+* Continue monitoring via the CICSHRTR and REUSE roll-ups at the usual peak slices (10:00 and 08:00) to confirm:
+
+  * High **PCT_REUSE** on completed regions,
+  * Minimal **DEALLOC / PGM_END**, and
+  * Steady or improved **CLASS1_CPU**.
+
+### Artefacts
+
+* Planning sheet and latest snapshots are attached / available in the thread (pink = **Wave 4**).
+  Reference: [summary image](sandbox:/mnt/data/560dc82b-a8b3-4677-9b38-3745376cde73.png)
+
+If you spot any region with reuse <90% where we expect ~99%, please ping me with **CONNECT_ID/PLAN** and the hour slice so we can trace it quickly in DB2PM.
+
+Cheers,
+Petr
