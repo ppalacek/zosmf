@@ -197,7 +197,6 @@ Review the output to ensure all datasets exist.
 /*
 </inlineTemplate>
             <submitAs maxRc="0">JCL</submitAs>
-            <maxLrecl>80</maxLrecl>
         </template>
     </step>
     
@@ -304,7 +303,6 @@ Update this field with your own text</instructions>
 //DB2FAIL2 EXEC PGM=IEFBR14                                           
 //   ENDIF    </inlineTemplate>
             <submitAs maxRc="4">JCL</submitAs>
-            <maxLrecl>80</maxLrecl>
         </template>
     </step>
     
@@ -423,7 +421,6 @@ Update this field with your own text</instructions>
 //   ENDIF                                                              
 //*                                                                                </inlineTemplate>
             <submitAs maxRc="4">JCL</submitAs>
-            <maxLrecl>80</maxLrecl>
         </template>
     </step>
     
@@ -465,7 +462,6 @@ Update this field with your own text</instructions>
 /*                                                                      
 //*                                                                     </inlineTemplate>
             <submitAs maxRc="4">JCL</submitAs>
-            <maxLrecl>80</maxLrecl>
         </template>
     </step>
     
@@ -506,7 +502,6 @@ Update this field with your own text</instructions>
 /*                                                                      
 //*                                                                     </inlineTemplate>
             <submitAs maxRc="4">JCL</submitAs>
-            <maxLrecl>80</maxLrecl>
         </template>
     </step>
     
@@ -593,7 +588,6 @@ Update this field with your own text</instructions>
 //DB2FAIL2 EXEC PGM=IEFBR14                                    
 //   ENDIF                                                     </inlineTemplate>
             <submitAs maxRc="4">JCL</submitAs>
-            <maxLrecl>80</maxLrecl>
         </template>
     </step>
     
@@ -714,7 +708,6 @@ RECEIVE HOLDDATA .
  REPORT MISSINGFIX ZONES(${instance-TGTZONE}) FIXCAT(CA*). 
 /*                                                </inlineTemplate>
             <submitAs maxRc="4">JCL</submitAs>
-            <maxLrecl>80</maxLrecl>
         </template>
     </step>
 </workflow>
