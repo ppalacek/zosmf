@@ -1,0 +1,18 @@
+Here’s a complete set of answers you can paste into the change record.
+
+---
+
+**– What is this Change about? Why is this Change needed?**
+This change introduces a new JCL (LDE1RMIS) with a REXX + embedded SQL program (PD2URMIS) on LIVE. The job scans Db2 catalog information and checks whether all required underlying Db2 datasets exist. Any missing datasets are reported by email so they can be recreated or fixed in advance. This is needed to proactively detect inconsistencies between Db2 objects and their physical datasets and to prevent production incidents, application failures or data loss caused by missing Db2 datasets.
+
+**– What will happen if we do not perform this Change?**
+Without this change we have no automated, regular check of missing Db2 datasets. Issues will only be discovered reactively when applications or batch jobs start to fail, potentially during business hours. This can lead to unplanned outages, extended recovery time, and more effort for troubleshooting and coordination between teams.
+
+**– What does the Change mean to the customer or the user after this Change is completed?**
+For customers and users this change is transparent, but it improves service stability. The environment will be monitored more proactively, reducing the likelihood of application errors and performance issues caused by missing Db2 datasets. In practice, users should see fewer incidents, less downtime, and faster resolution if problems are detected.
+
+**– What does the Change mean to the customer or the user if this Change goes wrong?**
+If the change goes wrong the main risk is that the new job may not run correctly (for example, it could fail or send incomplete/incorrect reports). In that case there is no direct impact on user transactions or data – existing applications will continue to run as today – but we would temporarily lose this additional monitoring capability until the job is fixed or backed out.
+
+**– What is the worst case scenario if this Change failed?**
+Worst case, the job causes unexpected system load or locking issues on Db2 catalog tables and needs to be cancelled, or it generates a large volume of incorrect alert emails that must be ignored. Even in this scenario, no customer data is modified by the job itself. The fallback is to disable the new JCL/REXX and return to the previous state without the automated check, while we investigate and correct the problem.

@@ -1,7 +1,3 @@
-<<<<<<< HEAD
-# zosmf
-zOSMF workflows
-=======
 # zOSMF Workflow Baseline Testing Framework
 
 ## Overview
@@ -369,4 +365,3 @@ Variable definitions and validation:
 This framework provides a solid foundation for zOS workflow development and testing. It demonstrates best practices for multi-technology integration and provides comprehensive tools for deployment and maintenance in z/OS environments.
 
 For additional support or customization, refer to the individual script documentation and IBM zOSMF documentation.
->>>>>>> 1ff2a2d (Initial commit)

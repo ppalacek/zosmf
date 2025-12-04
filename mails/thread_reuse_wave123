@@ -1,0 +1,110 @@
+# programme summary (waves 1–3)
+
+## objective
+
+enable **protected entry thread reuse** for high-volume CICS–Db2 transactions to:
+
+* cut create/terminate overhead (DEALLOC/PGM_END → ~0 where enabled),
+* stabilise and/or reduce **CLASS1 CPU** at peak,
+* keep within **CTHREAD** headroom while improving latency at scale.
+
+## scope & method
+
+* transactions prioritised from the **TOP-10** list by volume: **TX66, HBPA, RSIR** (wave 1), then **RSER, RS7P, RSEV** staged next.
+* configuration per DB2ENTRY (per region/SSID):
+
+  * `PROTECTNUM(3) THREADLIMIT(3) THREADWAIT(POOL)` (i.e. THRDA=3, THRDS=3),
+  * `ACCOUNTREC(TASK)` (post-correction),
+  * customer plan naming: **release-deallocate D-plans (`LQ01D1xx`)**.
+* monitoring: DB2PM/OMPE queries (**CICSHRTR**, **REUSE SQL**, hour slices at **08:00** & **10:00**), plus Omegamon real-time cross-checks.
+* success criteria per region/txn: **PCT_REUSE ≥95–99%**, and **DEALLOC/PGM_END ≈ 0**, with no adverse movement in **CLASS1_CPU**.
+
+---
+
+## timeline & headlines
+
+### wave 1 – foundation (completed)
+
+* **Where:** initial set of LQ01CIZ* regions across **DQ4A / DQ5A / DQ7A**.
+* **What:** protected entries for **TX66, HBPA, RSIR**.
+* **Result:** immediate uplift to **~99% reuse** on enabled regions; DEALLOC/PGM_END dropped to (near) zero; CPU stable to improved at peak.
+
+> lesson learned: an early mis-step with `ACCOUNTREC(TXID)` briefly masked benefits. **Fix applied on 3 Aug → `ACCOUNTREC(TASK)`** and benefits became visible estate-wide.
+
+### wave 2 – breadth (completed, modest net gain)
+
+* **Where:** broader set of regions; same 3 transactions.
+* **Context:** period overlaps with the **TXID→TASK** correction and data set unioning (old/new PDB tables), which diluted portfolio-level percentages.
+* **Result:** **local** reuse remained high where configured, but **aggregate** uplift looked muted until measurement was normalised post-3 Aug.
+
+> lesson learned: measurement matters. After aligning plans to **D-plans** and accounting to **TASK**, the estate picture matched the real-time monitors.
+
+### wave 3 – completion for core 3 (completed)
+
+* **Where:** **all LQ01CIZ* (A–L)** regions.
+* **What:** full roll-out for **TX66, HBPA, RSIR**.
+* **Result:**
+
+  * **Enabled regions:** **~99% PCT_REUSE** steady at peak; **DEALLOC/PGM_END ≈ 0**.
+  * **Estate totals:** visible portfolio lift (e.g., 22 Sep snapshots showed 29–49–47% while coverage was still converging; by Nov, remaining regions show the expected 95–99% on hour slices).
+  * **CTHREAD headroom:** increases per DB2 remained within observed limits; no contention or pool saturation reported.
+
+> lesson learned: once coverage hits 100% for a txn across its active regions, reuse metrics jump from “partial” to **consistently ≥95–99%**, and CPU variance smooths.
+
+---
+
+## quantitative highlights (illustrative, from your snapshots)
+
+* **Before 4 Aug vs after 4 Aug (post-fix):**
+
+  * **TX66 / RSIR / HBPA** at 10:00 moved from **0% reuse** with high DEALLOC to **40–49–29% estate-level** (partial coverage) and **≈99% on enabled regions** (full coverage views).
+* **Sep → Oct trend:**
+
+  * portfolio figures climbed as coverage grew; per-region hour slices consistently showed **≥95–99%** reuse with **DEALLOC/PGM_END → 0**.
+* **Nov completion checks (remaining regions):**
+
+  * both **10 Nov** and **17 Nov** hour slices confirm **99% reuse** for **TX66, RSIR, HBPA** where newly enabled, matching wave-3 steady state.
+
+*(use your existing tables/charts to visualise: “estate view” vs “enabled-only view”.)*
+
+---
+
+## risk & control
+
+* **CTHREAD/POOL safety:** added protected threads (3× per entry) stayed within observed limits for **DQ4A/DQ5A/DQ7A**; no pool overflow or ready-queue spikes post-change.
+* **Regression guardrails:** track **PCT_REUSE, DEALLOC, PGM_END, CLASS1_CPU** at 08:00/10:00 after each change; alert if reuse <90% or DEALLOC >0.
+
+---
+
+## benefits realised (waves 1–3)
+
+* **Reduced Db2 thread churn:** protected threads reused almost entirely at peak.
+* **CPU stability:** **CLASS1_CPU** flat to improved at like-for-like volume; spikiness reduced.
+* **Latency & throughput:** fewer thread creates/terminates → steadier response at Monday peaks.
+* **Operational headroom:** demonstrably within **CTHREAD** limits.
+
+---
+
+## what’s next (wave 4 – pink)
+
+* **Target txns:** **RSER, RSEV, RS7P** (plus any stragglers) across the same LQ01CIZ* estate.
+* **Config pattern:** identical DB2ENTRY shape (PROTECTNUM/THREADLIMIT 3/3, `ACCOUNTREC(TASK)`, D-plan).
+* **Success gates:** **PCT_REUSE ≥95–99%**, **DEALLOC/PGM_END ≈ 0**, **no CPU regression**.
+* **Reporting:** continue side-by-side estate vs enabled-only graphs to make coverage effects explicit.
+
+---
+
+## slide pack skeleton (copy/paste)
+
+1. **Title:** CICS–Db2 Thread Reuse: Waves 1–3 Summary
+2. **Objective & Scope** (1 slide)
+3. **Approach & Config Pattern** (1 slide)
+4. **Timeline** (W1→W3 milestones; TXID→TASK fix called out)
+5. **Results – Enabled Regions** (one chart per txn showing ≥95–99% reuse + DEALLOC≈0)
+6. **Results – Estate View** (how partial coverage masks totals; then convergence)
+7. **CPU & Headroom** (CLASS1_CPU trend; CTHREAD note)
+8. **Lessons Learned** (accounting, plans, measurement)
+9. **Benefits Realised**
+10. **Wave 4 Plan (Pink) & Success Criteria**
+11. **Risks & Controls** (what we watch)
+12. **Appendix** (SQL snippets & monitoring views)

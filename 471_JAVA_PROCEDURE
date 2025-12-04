@@ -1,0 +1,145 @@
+At a high level this wasn’t an application bug – Db2 just gave up waiting for WLM to spin up TB0AWJ01 because STARTIME is only 10 seconds on DB0A and the appenv needed ~17 seconds.
+If you want to treat it as more than a “one-off”, I’d investigate along these lines:
+
+---
+
+## 1. Check how often this really happens
+
+**Goal:** Is this truly rare, or do you just see it occasionally?
+
+* In Db2 MSTR / DBM1 logs for DB0A, search for:
+
+  * `00E79002`
+  * `SQLCODE = -471`
+  * `SYSFUN.JAVDRVV`
+* In application / batch logs, grep for `SQLCODE -471` and reason `00E79002`.
+* If you have SMF / log analytics, create a small report of all occurrences in the last 3–6 months.
+
+If it’s more than once or twice a year, it’s worth tuning.
+
+---
+
+## 2. Reconstruct what happened at that time
+
+For the specific incident:
+
+1. **Db2 MSTR log (DB0A)**
+
+   * Look around `23.21.32–23.21.50` for:
+
+     * WLM environment messages (DSNX9xxx) about TB0AWJ01 starting/stopping.
+     * Any resource shortage messages (threads, storage, etc.).
+2. **TB0AWJ01 STC log**
+
+   * Confirm when the address space actually started (first JES messages).
+   * Check for delays – e.g. waiting on dataset allocation, security (RACF) checks, mounts, OMVS/USS startup, etc.
+3. **SYSLOG / WLM messages**
+
+   * Look for IWM* messages indicating WLM couldn’t immediately schedule the new address space (no initiators, class held, etc.).
+
+If you can show that TB0AWJ01 *consistently* needs >10 seconds to start on that LPAR, then STARTIME=10 is simply unrealistic.
+
+---
+
+## 3. Review the Db2 and WLM configuration
+
+### Db2 side
+
+* Confirm DSNZPARM **STARTIME** on DB0A (you already have the table: 10s vs 180s elsewhere).
+* Re-DISPLAY the function to double-check its settings:
+
+  ```
+  -DIS FUNCTION(SYSFUN.JAVDRVV) SERVICE(WLM)
+  ```
+
+  Pay attention to:
+
+  * `WLM_ENV` (TB0AWJ01 – correct)
+  * `TIMEOUT` (looks like `1` – typically minutes; this is *longer* than STARTIME, so STARTIME is the limiting factor)
+  * `MAXQ`, `MAX ACTIV` – make sure you’re not constrained there.
+
+### WLM side
+
+* Look at the WLM policy definition of **APPLENV TB0AWJ01**:
+
+  * Which **service class** is it running in? Is that class heavily capped or low priority?
+  * Is the **address space type** STC, and is the STC class ever short of initiators at 23:21?
+  * Any “initial number of servers” / min-server settings that would allow keeping one region warm?
+
+---
+
+## 4. Try to reproduce and measure startup time
+
+In a quiet period:
+
+1. Stop TB0AWJ01 cleanly (if normally allowed).
+2. Run a simple test that invokes `SYSFUN.JAVDRVV` from SPUFI or a small batch job.
+3. Measure:
+
+   * Time between the SQL call and first messages in TB0AWJ01’s JES log.
+   * Total time until the function completes.
+
+If the “cold start” regularly takes longer than 10 seconds (which is likely), you have solid evidence for tuning.
+
+---
+
+## 5. Decide on mitigation options
+
+You’ve basically got three levers:
+
+### Option A – Increase STARTIME on DB0A
+
+* Align DB0A with the subsystems using **180 seconds** (or at least something like 60s).
+* Pros:
+
+  * Simple change, no application impact.
+  * Avoids similar failures whenever the appenv is cold.
+* Cons:
+
+  * The calling task can hang longer if there *really is* a WLM problem – but that’s usually acceptable for these workloads.
+
+### Option B – Keep the WLM environment warm
+
+* Ensure TB0AWJ01 is normally **started and left up**, rather than auto-stopped for long periods.
+* Or schedule a “warm-up” job a few minutes before the SB03 window that calls `SYSFUN.JAVDRVV` once so the env is already up.
+* Pros:
+
+  * No zparm change; faster first response.
+* Cons:
+
+  * Permanent STC consuming (small) resources; needs operations agreement.
+
+### Option C – Investigate WLM delays more deeply
+
+If startup times are *very* long:
+
+* Check RMF / SMF type 72 WLM reports for that timeframe:
+
+  * Any CPU contention on the service class used by TB0AWJ01?
+  * Enclave delays, paging, I/O waits?
+* Check initiator availability and JES2 class usage.
+* If nothing obvious shows up and startup times are extreme, this could justify an IBM PMR/case.
+
+---
+
+## 6. What I’d actually propose to PSD Duty
+
+If you need a concrete “next steps” list to hand over:
+
+1. **Trend analysis**: Search DB0A logs and app logs for all occurrences of `SQLCODE -471, reason 00E79002` for the last 6–12 months.
+2. **Forensic analysis of this incident**:
+
+   * Capture DB0A MSTR/DBM1 and TB0AWJ01 STC logs around 23:21–23:22.
+   * Document exact times: job start/end, WLM env start, SQL failure.
+3. **Parameter comparison**:
+
+   * Document DSNZPARM STARTIME for all Db2 subsystems and explain why DB0A has 10s while others have 180s.
+4. **Test startup timing** in a controlled window (cold stop TB0AWJ01 and time a test call).
+5. **Recommendation**:
+
+   * If cold-start consistently >10s and this function is business-critical, propose:
+
+     * Increase STARTIME to 60–180s **and/or**
+     * Keep TB0AWJ01 permanently started or warmed up before release windows.
+
+If you want, you can paste the exact DSNZPARM display and a snippet from DB0A/TB0AWJ01 logs and I can help you turn this into a short RCA / change proposal.
