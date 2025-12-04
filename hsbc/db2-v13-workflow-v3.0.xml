@@ -179,9 +179,7 @@ Review the output to ensure all datasets exist.
         <autoEnable>true</autoEnable>
         <canMarkAsFailed>false</canMarkAsFailed>
         <template>
-            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
-//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
-//********************************************************************
+            <inlineTemplate substitution="true">//********************************************************************
 //* VALIDATE PREREQUISITES FOR DB2 V13 MAINTENANCE RECEPTION
 //********************************************************************
 //LISTCSI  EXEC PGM=IKJEFT01,DYNAMNBR=20
@@ -218,9 +216,7 @@ Update this field with your own text</instructions>
         <autoEnable>true</autoEnable>
         <canMarkAsFailed>false</canMarkAsFailed>
         <template>
-            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
-//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
-//*                                                                     
+            <inlineTemplate substitution="true">//*                                                                     
 //* CHANGE THE SOURCEID CHANGE THE SOURCEID CHANGE THE SOURCEID         
 //*                                                                     
 //*                                                                     
@@ -325,9 +321,7 @@ Update this field with your own text</instructions>
         <autoEnable>true</autoEnable>
         <canMarkAsFailed>true</canMarkAsFailed>
         <template>
-            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
-//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
-//*                                                                    
+            <inlineTemplate substitution="true">//*                                                                    
 //*                                                                    
 //* MOUNT SYSD.SHOPZ.${instance-MAINT_LVL}.DB2.ZFS FOR DOWNLOAD OF SHOPZ ORDERS 
 //*                                                                    
@@ -443,9 +437,7 @@ Update this field with your own text</instructions>
         <autoEnable>true</autoEnable>
         <canMarkAsFailed>true</canMarkAsFailed>
         <template>
-            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
-//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
-//*--------------------------------------------------------------------*
+            <inlineTemplate substitution="true">//*--------------------------------------------------------------------*
 //* REPORT ON ERROR SYSMODS                                            *
 //* N.B ALSO RUN FIXCATRP                                              *
 //* N.B THIS JOB ALSO CONTAINS THE REPORT MISSINGFIX                   *
@@ -484,9 +476,7 @@ Update this field with your own text</instructions>
         <autoEnable>true</autoEnable>
         <canMarkAsFailed>true</canMarkAsFailed>
         <template>
-            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
-//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
-//*--------------------------------------------------------------------*
+            <inlineTemplate substitution="true">//*--------------------------------------------------------------------*
 //* REPORT ON ERROR SYSMODS                                            *
 //* N.B ALSO RUN FIXCATRP                                              *
 //* N.B THIS JOB ALSO CONTAINS THE REPORT MISSINGFIX                   *
@@ -526,9 +516,7 @@ Update this field with your own text</instructions>
         <autoEnable>true</autoEnable>
         <canMarkAsFailed>true</canMarkAsFailed>
         <template>
-            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
-//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
-//*                                                                    
+            <inlineTemplate substitution="true">//*                                                                    
 //* CHANGE THE SOURCEID CHANGE THE SOURCEID CHANGE THE SOURCEID        
 //*                                                                    
 //*                                                                    
@@ -614,9 +602,7 @@ Update this field with your own text</instructions>
         <autoEnable>true</autoEnable>
         <canMarkAsFailed>true</canMarkAsFailed>
         <template>
-            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
-//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
-//* JCL IN SYSD.${instance-MAINT_LVL}.CPFLK00.DB2.CATOOLS.SMPJCL(DBM60RCH)      
+            <inlineTemplate substitution="true">//* JCL IN SYSD.${instance-MAINT_LVL}.CPFLK00.DB2.CATOOLS.SMPJCL(DBM60RCH)      
 //*                                                                    
 //*********************************************************************
 //* MEMBER: DBM60RCH                                                  *
