@@ -179,7 +179,9 @@ Review the output to ensure all datasets exist.
         <autoEnable>true</autoEnable>
         <canMarkAsFailed>false</canMarkAsFailed>
         <template>
-            <inlineTemplate substitution="true">//********************************************************************
+            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
+//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
+//********************************************************************
 //* VALIDATE PREREQUISITES FOR DB2 V13 MAINTENANCE RECEPTION
 //********************************************************************
 //LISTCSI  EXEC PGM=IKJEFT01,DYNAMNBR=20
@@ -195,6 +197,7 @@ Review the output to ensure all datasets exist.
 /*
 </inlineTemplate>
             <submitAs maxRc="0">JCL</submitAs>
+            <saveAsUnixFile substitution="true">/tmp/${instance-USER_ID}_validate.jcl</saveAsUnixFile>
             <maxLrecl>80</maxLrecl>
         </template>
     </step>
@@ -216,7 +219,9 @@ Update this field with your own text</instructions>
         <autoEnable>true</autoEnable>
         <canMarkAsFailed>false</canMarkAsFailed>
         <template>
-            <inlineTemplate substitution="true">//*                                                                     
+            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
+//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
+//*                                                                     
 //* CHANGE THE SOURCEID CHANGE THE SOURCEID CHANGE THE SOURCEID         
 //*                                                                     
 //*                                                                     
@@ -300,6 +305,7 @@ Update this field with your own text</instructions>
 //DB2FAIL2 EXEC PGM=IEFBR14                                           
 //   ENDIF    </inlineTemplate>
             <submitAs maxRc="4">JCL</submitAs>
+            <saveAsUnixFile substitution="true">/tmp/${instance-USER_ID}_db2recv.jcl</saveAsUnixFile>
             <maxLrecl>80</maxLrecl>
         </template>
     </step>
@@ -321,7 +327,9 @@ Update this field with your own text</instructions>
         <autoEnable>true</autoEnable>
         <canMarkAsFailed>true</canMarkAsFailed>
         <template>
-            <inlineTemplate substitution="true">//*                                                                    
+            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
+//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
+//*                                                                    
 //*                                                                    
 //* MOUNT SYSD.SHOPZ.${instance-MAINT_LVL}.DB2.ZFS FOR DOWNLOAD OF SHOPZ ORDERS 
 //*                                                                    
@@ -417,6 +425,7 @@ Update this field with your own text</instructions>
 //   ENDIF                                                              
 //*                                                                                </inlineTemplate>
             <submitAs maxRc="4">JCL</submitAs>
+            <saveAsUnixFile substitution="true">/tmp/${instance-USER_ID}_toolsrecv.jcl</saveAsUnixFile>
             <maxLrecl>80</maxLrecl>
         </template>
     </step>
@@ -437,7 +446,9 @@ Update this field with your own text</instructions>
         <autoEnable>true</autoEnable>
         <canMarkAsFailed>true</canMarkAsFailed>
         <template>
-            <inlineTemplate substitution="true">//*--------------------------------------------------------------------*
+            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
+//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
+//*--------------------------------------------------------------------*
 //* REPORT ON ERROR SYSMODS                                            *
 //* N.B ALSO RUN FIXCATRP                                              *
 //* N.B THIS JOB ALSO CONTAINS THE REPORT MISSINGFIX                   *
@@ -457,6 +468,7 @@ Update this field with your own text</instructions>
 /*                                                                      
 //*                                                                     </inlineTemplate>
             <submitAs maxRc="4">JCL</submitAs>
+            <saveAsUnixFile substitution="true">/tmp/${instance-USER_ID}_db2rpt.jcl</saveAsUnixFile>
             <maxLrecl>80</maxLrecl>
         </template>
     </step>
@@ -476,7 +488,9 @@ Update this field with your own text</instructions>
         <autoEnable>true</autoEnable>
         <canMarkAsFailed>true</canMarkAsFailed>
         <template>
-            <inlineTemplate substitution="true">//*--------------------------------------------------------------------*
+            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
+//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
+//*--------------------------------------------------------------------*
 //* REPORT ON ERROR SYSMODS                                            *
 //* N.B ALSO RUN FIXCATRP                                              *
 //* N.B THIS JOB ALSO CONTAINS THE REPORT MISSINGFIX                   *
@@ -496,6 +510,7 @@ Update this field with your own text</instructions>
 /*                                                                      
 //*                                                                     </inlineTemplate>
             <submitAs maxRc="4">JCL</submitAs>
+            <saveAsUnixFile substitution="true">/tmp/${instance-USER_ID}_toolsrpt.jcl</saveAsUnixFile>
             <maxLrecl>80</maxLrecl>
         </template>
     </step>
@@ -516,7 +531,9 @@ Update this field with your own text</instructions>
         <autoEnable>true</autoEnable>
         <canMarkAsFailed>true</canMarkAsFailed>
         <template>
-            <inlineTemplate substitution="true">//*                                                                    
+            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
+//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
+//*                                                                    
 //* CHANGE THE SOURCEID CHANGE THE SOURCEID CHANGE THE SOURCEID        
 //*                                                                    
 //*                                                                    
@@ -581,6 +598,7 @@ Update this field with your own text</instructions>
 //DB2FAIL2 EXEC PGM=IEFBR14                                    
 //   ENDIF                                                     </inlineTemplate>
             <submitAs maxRc="4">JCL</submitAs>
+            <saveAsUnixFile substitution="true">/tmp/${instance-USER_ID}_carecv.jcl</saveAsUnixFile>
             <maxLrecl>80</maxLrecl>
         </template>
     </step>
@@ -602,7 +620,9 @@ Update this field with your own text</instructions>
         <autoEnable>true</autoEnable>
         <canMarkAsFailed>true</canMarkAsFailed>
         <template>
-            <inlineTemplate substitution="true">//* JCL IN SYSD.${instance-MAINT_LVL}.CPFLK00.DB2.CATOOLS.SMPJCL(DBM60RCH)      
+            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
+//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
+//* JCL IN SYSD.${instance-MAINT_LVL}.CPFLK00.DB2.CATOOLS.SMPJCL(DBM60RCH)      
 //*                                                                    
 //*********************************************************************
 //* MEMBER: DBM60RCH                                                  *
@@ -700,6 +720,7 @@ RECEIVE HOLDDATA .
  REPORT MISSINGFIX ZONES(${instance-TGTZONE}) FIXCAT(CA*). 
 /*                                                </inlineTemplate>
             <submitAs maxRc="4">JCL</submitAs>
+            <saveAsUnixFile substitution="true">/tmp/${instance-USER_ID}_carpt.jcl</saveAsUnixFile>
             <maxLrecl>80</maxLrecl>
         </template>
     </step>
