@@ -196,7 +196,6 @@ Review the output to ensure all datasets exist.
   LISTDS 'SYSD.SHOPZ.${instance-MAINT_LVL}.DB2.CATOOLS.ZFS' STATUS
 /*
 </inlineTemplate>
-            <saveAsUnixFile substitution="true">/tmp/${instance-USER_ID}_validate.jcl</saveAsUnixFile>
             <submitAs maxRc="0">JCL</submitAs>
             <maxLrecl>80</maxLrecl>
         </template>
@@ -304,7 +303,6 @@ Update this field with your own text</instructions>
 //   IF DB2UMN.RC NE 0 THEN                                           
 //DB2FAIL2 EXEC PGM=IEFBR14                                           
 //   ENDIF    </inlineTemplate>
-            <saveAsUnixFile substitution="true">/tmp/${instance-USER_ID}_db2recv.jcl</saveAsUnixFile>
             <submitAs maxRc="4">JCL</submitAs>
             <maxLrecl>80</maxLrecl>
         </template>
@@ -424,7 +422,6 @@ Update this field with your own text</instructions>
 //DBTFAIL2 EXEC PGM=IEFBR14                                             
 //   ENDIF                                                              
 //*                                                                                </inlineTemplate>
-            <saveAsUnixFile substitution="true">/tmp/${instance-USER_ID}_toolsrecv.jcl</saveAsUnixFile>
             <submitAs maxRc="4">JCL</submitAs>
             <maxLrecl>80</maxLrecl>
         </template>
@@ -467,7 +464,6 @@ Update this field with your own text</instructions>
   REPORT MISSINGFIX ZONES(${instance-TGTZONE}) FIXCAT(IBM*).                     
 /*                                                                      
 //*                                                                     </inlineTemplate>
-            <saveAsUnixFile substitution="true">/tmp/${instance-USER_ID}_db2rpt.jcl</saveAsUnixFile>
             <submitAs maxRc="4">JCL</submitAs>
             <maxLrecl>80</maxLrecl>
         </template>
@@ -509,7 +505,6 @@ Update this field with your own text</instructions>
   REPORT MISSINGFIX ZONES(${instance-TGTZONE}) FIXCAT(IBM*).                     
 /*                                                                      
 //*                                                                     </inlineTemplate>
-            <saveAsUnixFile substitution="true">/tmp/${instance-USER_ID}_toolsrpt.jcl</saveAsUnixFile>
             <submitAs maxRc="4">JCL</submitAs>
             <maxLrecl>80</maxLrecl>
         </template>
@@ -597,7 +592,6 @@ Update this field with your own text</instructions>
 //   IF DB2UMN.RC NE 0 THEN                                    
 //DB2FAIL2 EXEC PGM=IEFBR14                                    
 //   ENDIF                                                     </inlineTemplate>
-            <saveAsUnixFile substitution="true">/tmp/${instance-USER_ID}_carecv.jcl</saveAsUnixFile>
             <submitAs maxRc="4">JCL</submitAs>
             <maxLrecl>80</maxLrecl>
         </template>
@@ -719,7 +713,6 @@ RECEIVE HOLDDATA .
  REPORT ERRSYSMODS ZONES(${instance-TGTZONE}) .            
  REPORT MISSINGFIX ZONES(${instance-TGTZONE}) FIXCAT(CA*). 
 /*                                                </inlineTemplate>
-            <saveAsUnixFile substitution="true">/tmp/${instance-USER_ID}_carpt.jcl</saveAsUnixFile>
             <submitAs maxRc="4">JCL</submitAs>
             <maxLrecl>80</maxLrecl>
         </template>
