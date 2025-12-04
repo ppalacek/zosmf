@@ -1,0 +1,720 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+================================================================================
+  DB2 V13 SMP/E Maintenance Reception Workflow - Version 2.1
+================================================================================
+  Based on original Sriram workflow with added parameterization and JCL job cards.
+  Maintains original JCL structure and functionality.
+  
+  PREREQUISITES:
+  - SMP/E CSI datasets must exist and be initialized
+  - ZFS filesystems for maintenance downloads must be allocated
+  - ShopZ order datasets or Broadcom download access configured
+  - Appropriate RACF/security permissions for SMP/E processing
+  
+  See companion properties file: db2-v13-workflow-defaults.properties
+================================================================================
+-->
+<workflow>
+    <autoTakeOwnership>false</autoTakeOwnership>
+    <workflowInfo>
+        <workflowID scope="system">DB2 V13 Receive</workflowID>
+        <workflowDescription>Db2 V13 Receive Maintenance</workflowDescription>
+        <workflowVersion>2.1</workflowVersion>
+        <vendor>IBM</vendor>
+        <General/>
+    </workflowInfo>
+    
+    <!-- ====================================================================
+         Variable Definitions
+         ==================================================================== -->
+    
+    <variable name="MAINT_LVL" scope="instance" visibility="public">
+        <label>MAINT_LVL</label>
+        <abstract>MAINT_LVL</abstract>
+        <description>MAINT_LVL</description>
+        <category>General</category>
+        <string valueMustBeChoice="true" multiLine="false">
+            <choice>PC5V630</choice>
+            <choice>PC5V620</choice>
+            <default>PC5V620</default>
+        </string>
+    </variable>
+    
+    <variable name="DB2_VER" scope="instance" visibility="public">
+        <label>DB2_VER</label>
+        <abstract>DB2_VER</abstract>
+        <description>DB2_VER</description>
+        <category>General</category>
+        <string valueMustBeChoice="false" multiLine="false">
+            <default>V13</default>
+        </string>
+    </variable>
+    
+    <variable name="TGTZONE" scope="instance" visibility="private">
+        <label>TGTZONE</label>
+        <abstract>TGTZONE</abstract>
+        <description>TGTZONE</description>
+        <category>General</category>
+        <string valueMustBeChoice="true" multiLine="false">
+            <choice>PC622T</choice>
+            <choice>PC630T</choice>
+            <choice>PC631T</choice>
+            <default>PC622T</default>
+        </string>
+    </variable>
+    
+    <!-- User ID for JCL job cards -->
+    <variable name="USER_ID" scope="instance" visibility="public">
+        <label>User ID</label>
+        <abstract>TSO User ID for job submission</abstract>
+        <description>Your TSO User ID for job execution and NOTIFY</description>
+        <category>General</category>
+        <string valueMustBeChoice="false" multiLine="false">
+            <default>D33553</default>
+        </string>
+    </variable>
+    
+    <!-- Mount Points - matching original -->
+    <variable name="DB2_MOUNT_POINT" scope="instance" visibility="public">
+        <label>DB2 Mount Point</label>
+        <abstract>Mount point for DB2 core maintenance</abstract>
+        <description>USS directory path for DB2 core maintenance ZFS</description>
+        <category>Mount Points</category>
+        <string valueMustBeChoice="false" multiLine="false">
+            <default>/hsbc/maintwrkPC5DHT</default>
+        </string>
+    </variable>
+    
+    <variable name="DB2TOOLS_MOUNT_POINT" scope="instance" visibility="public">
+        <label>DB2 Tools Mount Point</label>
+        <abstract>Mount point for DB2 Tools maintenance</abstract>
+        <description>USS directory path for DB2 Tools maintenance ZFS</description>
+        <category>Mount Points</category>
+        <string valueMustBeChoice="false" multiLine="false">
+            <default>/DG11/hsbc/maintwrkPC5DHT</default>
+        </string>
+    </variable>
+    
+    <variable name="DB2TOOLS_WORK_MOUNT" scope="instance" visibility="public">
+        <label>DB2 Tools Work Mount</label>
+        <abstract>Work mount point for DB2 Tools</abstract>
+        <description>USS directory path for DB2 Tools work ZFS</description>
+        <category>Mount Points</category>
+        <string valueMustBeChoice="false" multiLine="false">
+            <default>/DG11/hsbc/maintwrkPC5DHTW</default>
+        </string>
+    </variable>
+    
+    <variable name="CATOOLS_MOUNT_POINT" scope="instance" visibility="public">
+        <label>Broadcom Tools Mount Point</label>
+        <abstract>Mount point for Broadcom DB2 Tools</abstract>
+        <description>USS directory path for Broadcom Tools maintenance ZFS</description>
+        <category>Mount Points</category>
+        <string valueMustBeChoice="false" multiLine="false">
+            <default>/DG11/hsbc/maintwrkPC5DHT</default>
+        </string>
+    </variable>
+    
+    <!-- Java Home -->
+    <variable name="JAVA_HOME" scope="instance" visibility="public">
+        <label>Java Home Directory</label>
+        <abstract>Path to Java installation</abstract>
+        <description>USS directory path to Java installation</description>
+        <category>Configuration</category>
+        <string valueMustBeChoice="false" multiLine="false">
+            <default>/usr/lpp/java/J0.0</default>
+        </string>
+    </variable>
+    
+    <!-- FTP Configuration for Broadcom -->
+    <variable name="FTP_PROXY" scope="instance" visibility="public">
+        <label>FTP Proxy Server</label>
+        <abstract>FTP proxy server hostname</abstract>
+        <description>FTP proxy server for Broadcom downloads</description>
+        <category>Configuration</category>
+        <string valueMustBeChoice="false" multiLine="false">
+            <default>intpxy6.hk.hsbc</default>
+        </string>
+    </variable>
+    
+    <variable name="FTP_EMAIL" scope="instance" visibility="public">
+        <label>FTP Email Address</label>
+        <abstract>Email for anonymous FTP</abstract>
+        <description>Email address for FTP anonymous login</description>
+        <category>Configuration</category>
+        <string valueMustBeChoice="false" multiLine="false">
+            <default>zseries.mss@hsbc.com</default>
+        </string>
+    </variable>
+    
+    <atCreate name="MAINT_LVL" scope="instance" required="true" prompt="false"/>
+    
+    <!-- ====================================================================
+         Step 1: Validate Prerequisites
+         ==================================================================== -->
+    
+    <step name="Validate-Prerequisites" optional="false">
+        <title>Validate Prerequisites</title>
+        <description>Verify that required CSI datasets and filesystems exist</description>
+        <variableValue name="MAINT_LVL" scope="instance" noPromptIfSet="false" required="true"/>
+        <variableValue name="DB2_VER" scope="instance" noPromptIfSet="false" required="true"/>
+        <instructions substitution="true">
+This step validates that all required datasets exist before attempting maintenance reception:
+
+1. Verifies SMP/E CSI datasets exist:
+   - SMPE.${instance-MAINT_LVL}.DB2.${instance-DB2_VER}.GLOBAL.CSI
+   - SMPE.${instance-MAINT_LVL}.DB2TOOLS.GLOBAL.CSI
+   - SMPE.${instance-MAINT_LVL}.DB2.CATOOLS.GLOBAL.CSI
+
+2. Verifies ZFS filesystems are allocated:
+   - SYSD.SHOPZ.${instance-MAINT_LVL}.DB2.${instance-DB2_VER}.ZFS
+   - SYSD.SHOPZ.${instance-MAINT_LVL}.DB2.TOOLS.ZFS
+   - SYSD.SHOPZ.${instance-MAINT_LVL}.DB2.TOOLS.W.ZFS
+   - SYSD.SHOPZ.${instance-MAINT_LVL}.DB2.CATOOLS.ZFS
+
+Review the output to ensure all datasets exist.
+        </instructions>
+        <weight>1</weight>
+        <autoEnable>true</autoEnable>
+        <canMarkAsFailed>false</canMarkAsFailed>
+        <template>
+            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
+//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
+//********************************************************************
+//* VALIDATE PREREQUISITES FOR DB2 V13 MAINTENANCE RECEPTION
+//********************************************************************
+//LISTCSI  EXEC PGM=IKJEFT01,DYNAMNBR=20
+//SYSTSPRT DD SYSOUT=*
+//SYSTSIN  DD *
+  LISTDS 'SMPE.${instance-MAINT_LVL}.DB2.${instance-DB2_VER}.GLOBAL.CSI' STATUS
+  LISTDS 'SMPE.${instance-MAINT_LVL}.DB2TOOLS.GLOBAL.CSI' STATUS
+  LISTDS 'SMPE.${instance-MAINT_LVL}.DB2.CATOOLS.GLOBAL.CSI' STATUS
+  LISTDS 'SYSD.SHOPZ.${instance-MAINT_LVL}.DB2.${instance-DB2_VER}.ZFS' STATUS
+  LISTDS 'SYSD.SHOPZ.${instance-MAINT_LVL}.DB2.TOOLS.ZFS' STATUS
+  LISTDS 'SYSD.SHOPZ.${instance-MAINT_LVL}.DB2.TOOLS.W.ZFS' STATUS
+  LISTDS 'SYSD.SHOPZ.${instance-MAINT_LVL}.DB2.CATOOLS.ZFS' STATUS
+/*
+</inlineTemplate>
+            <submitAs maxRc="0">JCL</submitAs>
+            <maxLrecl>80</maxLrecl>
+        </template>
+    </step>
+    
+    <!-- ====================================================================
+         Step 2: Db2-V13-Receive-Maintenance (Original JCL)
+         ==================================================================== -->
+    
+    <step name="Db2-V13-Receive-Maintenance" optional="false">
+        <title>Receive Maintenance</title>
+        <description/>
+        <variableValue name="DB2_VER" scope="instance" noPromptIfSet="false" required="false"/>
+        <variableValue name="MAINT_LVL" scope="instance" noPromptIfSet="false" required="false"/>
+        <variableValue name="DB2_MOUNT_POINT" scope="instance" noPromptIfSet="false" required="false"/>
+        <variableValue name="JAVA_HOME" scope="instance" noPromptIfSet="false" required="false"/>
+        <instructions substitution="false">Generated instruction text for step: Db2-V13-Receive-Maintenance
+Update this field with your own text</instructions>
+        <weight>1</weight>
+        <autoEnable>true</autoEnable>
+        <canMarkAsFailed>false</canMarkAsFailed>
+        <template>
+            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
+//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
+//*                                                                     
+//* CHANGE THE SOURCEID CHANGE THE SOURCEID CHANGE THE SOURCEID         
+//*                                                                     
+//*                                                                     
+//* MOUNT SYSD.SHOPZ.${instance-MAINT_LVL}.DB2.ZFS FOR DOWNLOAD OF SHOPZ ORDERS  
+//*                                                                     
+//DB2MNT   EXEC PGM=IKJEFT01,DYNAMNBR=50,REGION=8M                      
+//SYSTSPRT DD SYSOUT=*                                                  
+//SYSTSIN  DD *                                                         
+  MOUNT FILESYSTEM('SYSD.SHOPZ.${instance-MAINT_LVL}.DB2.${instance-DB2_VER}.ZFS') +      
+        MOUNTPOINT('${instance-DB2_MOUNT_POINT}')            +                 
+        TYPE(ZFS)  MODE(RDWR)                                           
+/*                                                                      
+//*                                                                     
+//   IF DB2MNT.RC NE 0 THEN                                             
+//DB2FAIL  EXEC PGM=IEFBR14                                             
+//   ENDIF
+//DB2SMP1 EXEC PGM=GIMSMP,REGION=0M,                  &lt;=== NOTE 1     
+//             PARM='PROCESS=WAIT'                                    
+//SMPNTS   DD  PATHDISP=KEEP,                                         
+//             PATH='${instance-DB2_MOUNT_POINT}'               &lt;=== NOTE 2  
+//SMPJHOME DD  PATHDISP=KEEP,                                         
+//             PATH='${instance-JAVA_HOME}'              &lt;=== NOTE 6     
+//SMPOUT   DD  DISP=SHR,DSN=SYSD.PC5V5.SMPOUT.IN                      
+//SMPRPT   DD  SYSOUT=*                                               
+//SMPLIST  DD  SYSOUT=*                                               
+//SMPLOG   DD  SYSOUT=*                                               
+//SYSPRINT DD  SYSOUT=*                                               
+//SYSUT1   DD  UNIT=SYSALLDA,SPACE=(6160,(9000,5000))                 
+//SYSUT2   DD  UNIT=SYSALLDA,SPACE=(6160,(9000,5000))                 
+//SYSUT3   DD  UNIT=SYSALLDA,SPACE=(6160,(9000,5000))                 
+//SYSUT4   DD  UNIT=SYSALLDA,SPACE=(6160,(9000,5000))                 
+//SMPCSI   DD DISP=SHR,DSN=SMPE.${instance-MAINT_LVL}.DB2.${instance-DB2_VER}.GLOBAL.CSI
+//ORDSERVR DD  DISP=SHR,DSN=SYSD.PC5V5.SMP.INSTALL.JCL(ORDSERV1)      
+//CLNTINFO DD  DISP=SHR,DSN=SYSD.PC5V5.SMP.INSTALL.JCL(CLNTINFO)     
+//SMPCNTL  DD  *                                                     
+  SET      BOUNDARY (GLOBAL) .                                       
+  RECEIVE                                                            
+          ORDER(                                                     
+           ORDERSERVER(ORDSERVR)                                     
+           CLIENT(CLNTINFO)                                          
+           CONTENT(ALL)                                              
+      /*   TRANSFERONLY */                                           
+                        ).                                           
+/*                                                                   
+//DB2SMP2 EXEC PGM=GIMSMP,REGION=0M,                    &lt;=== NOTE 1  
+//             PARM='PROCESS=WAIT',COND=(4,GE,DB2SMP1)               
+//SMPNTS   DD  PATHDISP=KEEP,                                        
+//             PATH='${instance-DB2_MOUNT_POINT}'               &lt;=== NOTE 2 
+//SMPJHOME DD  PATHDISP=KEEP,                                        
+//             PATH='${instance-JAVA_HOME}'              &lt;=== NOTE 6    
+//SMPOUT   DD  DISP=SHR,DSN=SYSD.PC5V5.SMPOUT.IN                     
+//SMPRPT   DD  SYSOUT=*                                              
+//SMPLIST  DD  SYSOUT=*                                                
+//SMPLOG   DD  SYSOUT=*                                                
+//SYSPRINT DD  SYSOUT=*                                                
+//SYSUT1   DD  UNIT=SYSALLDA,SPACE=(6160,(9000,5000))                  
+//SYSUT2   DD  UNIT=SYSALLDA,SPACE=(6160,(9000,5000))                  
+//SYSUT3   DD  UNIT=SYSALLDA,SPACE=(6160,(9000,5000))                  
+//SYSUT4   DD  UNIT=SYSALLDA,SPACE=(6160,(9000,5000))                  
+//SMPCSI   DD DISP=SHR,DSN=SMPE.${instance-MAINT_LVL}.DB2.${instance-DB2_VER}.GLOBAL.CSI 
+//ORDSERVR DD  DISP=SHR,DSN=SYSD.PC5V5.SMP.INSTALL.JCL(ORDSERV2)       
+//CLNTINFO DD  DISP=SHR,DSN=SYSD.PC5V5.SMP.INSTALL.JCL(CLNTINFO)       
+//SMPCNTL  DD  *                                                       
+  SET      BOUNDARY (GLOBAL) .                                         
+  RECEIVE                                                              
+          ORDER(                                                       
+           ORDERSERVER(ORDSERVR)                                       
+           CLIENT(CLNTINFO)                                            
+           CONTENT(ALL)                                                
+      /*   TRANSFERONLY */                                             
+                        ).                                             
+/*                                                                      
+//SMPCPATH DD PATH='/usr/lpp/smp/classes',PATHDISP=KEEP             
+//DB2UMN   EXEC PGM=IKJEFT01,DYNAMNBR=50,REGION=8M                    
+//SYSTSPRT DD SYSOUT=*                                                
+//SYSTSIN  DD *                                                       
+  UNMOUNT FILESYSTEM('SYSD.SHOPZ.${instance-MAINT_LVL}.DB2.${instance-DB2_VER}.ZFS')    
+/*                                                                    
+//*                                                                   
+//   IF DB2UMN.RC NE 0 THEN                                           
+//DB2FAIL2 EXEC PGM=IEFBR14                                           
+//   ENDIF    </inlineTemplate>
+            <submitAs maxRc="4">JCL</submitAs>
+            <maxLrecl>80</maxLrecl>
+        </template>
+    </step>
+    
+    <!-- ====================================================================
+         Step 3: IBM-Db2-Tools-Receive (Original JCL)
+         ==================================================================== -->
+    
+    <step name="IBM-Db2-Tools-Receive" optional="false">
+        <title>IBM-Db2-Tools-Receive</title>
+        <description>Receive IBM Db2 tools maintenance</description>
+        <variableValue name="MAINT_LVL" scope="instance" noPromptIfSet="false" required="false"/>
+        <variableValue name="DB2TOOLS_MOUNT_POINT" scope="instance" noPromptIfSet="false" required="false"/>
+        <variableValue name="DB2TOOLS_WORK_MOUNT" scope="instance" noPromptIfSet="false" required="false"/>
+        <variableValue name="JAVA_HOME" scope="instance" noPromptIfSet="false" required="false"/>
+        <instructions substitution="false">Generated instruction text for step: IBM-Db2-Tools-Receive
+Update this field with your own text</instructions>
+        <weight>1</weight>
+        <autoEnable>true</autoEnable>
+        <canMarkAsFailed>true</canMarkAsFailed>
+        <template>
+            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
+//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
+//*                                                                    
+//*                                                                    
+//* MOUNT SYSD.SHOPZ.${instance-MAINT_LVL}.DB2.ZFS FOR DOWNLOAD OF SHOPZ ORDERS 
+//*                                                                    
+//DBTMNT   EXEC PGM=IKJEFT01,DYNAMNBR=50,REGION=8M                     
+//SYSTSPRT DD SYSOUT=*                                                 
+//SYSTSIN  DD *                                                        
+  MOUNT FILESYSTEM('SYSD.SHOPZ.${instance-MAINT_LVL}.DB2.TOOLS.ZFS') +          
+        MOUNTPOINT('${instance-DB2TOOLS_MOUNT_POINT}')            +           
+        TYPE(ZFS)  MODE(RDWR)                                          
+  MOUNT FILESYSTEM('SYSD.SHOPZ.${instance-MAINT_LVL}.DB2.TOOLS.W.ZFS') +        
+        MOUNTPOINT('${instance-DB2TOOLS_WORK_MOUNT}')            +          
+        TYPE(ZFS)  MODE(RDWR)                                          
+/*                                                                     
+//*                                                                    
+//   IF DBTMNT.RC NE 0 THEN                                            
+//DBTFAIL  EXEC PGM=IEFBR14                                            
+//   ENDIF                                                             
+//*                                                                    
+//*--------------------------------------------------------------------
+//*   D150617: receive DB2 Product Upgrades                            
+//*--------------------------------------------------------------------
+//DBTSMP1 EXEC PGM=GIMSMP,REGION=0M,                  &lt;=== NOTE 1      
+//             PARM='PROCESS=WAIT'                                     
+//SMPNTS   DD  PATHDISP=KEEP,                                          
+//             PATH='${instance-DB2TOOLS_MOUNT_POINT}'               &lt;=== NOTE 2   
+//SMPWKDIR DD  PATHDISP=KEEP,                                          
+//             PATH='${instance-DB2TOOLS_WORK_MOUNT}'           &lt;=== NOTE 3      
+//SMPJHOME DD  PATHDISP=KEEP,                                          
+//             PATH='${instance-JAVA_HOME}'              &lt;=== NOTE 6      
+//SMPOUT   DD  SYSOUT=*                                                
+//SMPRPT   DD  SYSOUT=*                                                
+//SMPLIST  DD  SYSOUT=*                                                
+//SMPLOG   DD  SYSOUT=*                                                
+//SYSPRINT DD  SYSOUT=*                                                
+//SYSUT1   DD  UNIT=SYSALLDA,SPACE=(6160,(9000,5000))                  
+//SYSUT2   DD  UNIT=SYSALLDA,SPACE=(6160,(9000,5000))                  
+//SYSUT3   DD  UNIT=SYSALLDA,SPACE=(6160,(9000,5000))                  
+//SYSUT4   DD  UNIT=SYSALLDA,SPACE=(6160,(9000,5000))                  
+//SMPCSI   DD DISP=SHR,DSN=SMPE.${instance-MAINT_LVL}.DB2TOOLS.GLOBAL.CSI     
+//ORDSERVR DD  DISP=SHR,DSN=SYSD.PC5V5.SMP.INSTALL.JCL(ORDSERV1)     
+//CLNTINFO DD  DISP=SHR,DSN=SYSD.PC5V5.SMP.INSTALL.JCL(CLNTINFO)     
+//SMPCNTL  DD  *                                                     
+  SET      BOUNDARY (GLOBAL) .                                       
+  RECEIVE                                                            
+          ORDER(                                                     
+           ORDERSERVER(ORDSERVR)                                     
+           CLIENT(CLNTINFO)                                          
+           CONTENT(ALL)                                              
+      /*   TRANSFERONLY */                                           
+                        ).                                           
+/*                                                                   
+//DBTSMP2 EXEC PGM=GIMSMP,REGION=0M,                    &lt;=== NOTE 1  
+//             PARM='PROCESS=WAIT',COND=(4,GE,DBTSMP1)               
+//SMPNTS   DD  PATHDISP=KEEP,                                        
+//             PATH='${instance-DB2TOOLS_MOUNT_POINT}'               &lt;=== NOTE 2 
+//SMPJHOME DD  PATHDISP=KEEP,                                        
+//             PATH='${instance-JAVA_HOME}'              &lt;=== NOTE 6    
+//SMPOUT   DD  SYSOUT=*                                            
+//SMPRPT   DD  SYSOUT=*                                            
+//SMPLIST  DD  SYSOUT=*                                            
+//SMPLOG   DD  SYSOUT=*                                            
+//SYSPRINT DD  SYSOUT=*                                            
+//SYSUT1   DD  UNIT=SYSALLDA,SPACE=(6160,(9000,5000))              
+//SYSUT2   DD  UNIT=SYSALLDA,SPACE=(6160,(9000,5000))              
+//SYSUT3   DD  UNIT=SYSALLDA,SPACE=(6160,(9000,5000))              
+//SYSUT4   DD  UNIT=SYSALLDA,SPACE=(6160,(9000,5000))              
+//SMPCSI   DD DISP=SHR,DSN=SMPE.${instance-MAINT_LVL}.DB2TOOLS.GLOBAL.CSI   
+//ORDSERVR DD  DISP=SHR,DSN=SYSD.PC5V5.SMP.INSTALL.JCL(ORDSERV2)   
+//CLNTINFO DD  DISP=SHR,DSN=SYSD.PC5V5.SMP.INSTALL.JCL(CLNTINFO)   
+//SMPCNTL  DD  *                                                   
+  SET      BOUNDARY (GLOBAL) .                                     
+  RECEIVE                                                          
+          ORDER(                                                   
+           ORDERSERVER(ORDSERVR)                                   
+           CLIENT(CLNTINFO)                                        
+           CONTENT(ALL)                                            
+      /*   TRANSFERONLY */                                              
+                        ).                                              
+/*                                                                      
+//SMPCPATH DD PATH='/usr/lpp/smp/classes',PATHDISP=KEEP                 
+//*                                                                     
+//* UNMOUNT SYSD.SHOPZ.${instance-MAINT_LVL}.DB2.ZFS FOR DOWNLOAD OF SHOPZ ORDERS
+//*                                                                     
+//DBTUMN   EXEC PGM=IKJEFT01,DYNAMNBR=50,REGION=8M                      
+//SYSTSPRT DD SYSOUT=*                                                  
+//SYSTSIN  DD *                                                         
+  UNMOUNT FILESYSTEM('SYSD.SHOPZ.${instance-MAINT_LVL}.DB2.TOOLS.ZFS')           
+  UNMOUNT FILESYSTEM('SYSD.SHOPZ.${instance-MAINT_LVL}.DB2.TOOLS.W.ZFS')         
+/*                                                                      
+//*                                                                     
+//   IF DBTUMN.RC NE 0 THEN                                             
+//DBTFAIL2 EXEC PGM=IEFBR14                                             
+//   ENDIF                                                              
+//*                                                                                </inlineTemplate>
+            <submitAs maxRc="4">JCL</submitAs>
+            <maxLrecl>80</maxLrecl>
+        </template>
+    </step>
+    
+    <!-- ====================================================================
+         Step 4: Report-Db2-Error-Sysmod (Original JCL)
+         ==================================================================== -->
+    
+    <step name="Report-Db2-Error-Sysmod" optional="false">
+        <title>Report-Db2-Error-Sysmod</title>
+        <description>Report Fixes in Error</description>
+        <variableValue name="DB2_VER" scope="instance" noPromptIfSet="false" required="false"/>
+        <variableValue name="MAINT_LVL" scope="instance" noPromptIfSet="false" required="false"/>
+        <variableValue name="TGTZONE" scope="instance" noPromptIfSet="false" required="false"/>
+        <instructions substitution="false">Generated instruction text for step: Report-Db2-Error-Sysmod
+Update this field with your own text</instructions>
+        <weight>1</weight>
+        <autoEnable>true</autoEnable>
+        <canMarkAsFailed>true</canMarkAsFailed>
+        <template>
+            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
+//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
+//*--------------------------------------------------------------------*
+//* REPORT ON ERROR SYSMODS                                            *
+//* N.B ALSO RUN FIXCATRP                                              *
+//* N.B THIS JOB ALSO CONTAINS THE REPORT MISSINGFIX                   *
+//*--------------------------------------------------------------------*
+//GIMSMP   EXEC PGM=GIMSMP,REGION=0M,                                   
+//            PARM='PROCESS=WAIT',                                      
+//            DYNAMNBR=120                                              
+//SMPCSI   DD DSN=SMPE.${instance-MAINT_LVL}.DB2.${instance-DB2_VER}.GLOBAL.CSI,DISP=SHR  
+//SMPOUT   DD SYSOUT=*                                                  
+//SMPRPT   DD SYSOUT=*                                                  
+//SMPLIST  DD SYSOUT=*                                                  
+//SYSPRINT DD SYSOUT=*                                                  
+//SMPCNTL  DD *                                                         
+  SET BDY(GLOBAL).                                                      
+  REPORT ERRSYSMODS ZONES(${instance-TGTZONE}).                                  
+  REPORT MISSINGFIX ZONES(${instance-TGTZONE}) FIXCAT(IBM*).                     
+/*                                                                      
+//*                                                                     </inlineTemplate>
+            <submitAs maxRc="4">JCL</submitAs>
+            <maxLrecl>80</maxLrecl>
+        </template>
+    </step>
+    
+    <!-- ====================================================================
+         Step 5: Report-IBM-Db2-Tools-Error-Sysmod (Original JCL)
+         ==================================================================== -->
+    
+    <step name="Report-IBM-Db2-Tools-Error-Sysmod" optional="false">
+        <title>Report-IBM-Db2-Tools-Error-Sysmod</title>
+        <description>Report-IBM-Db2-Tools-Error-Sysmod</description>
+        <variableValue name="MAINT_LVL" scope="instance" noPromptIfSet="false" required="false"/>
+        <variableValue name="TGTZONE" scope="instance" noPromptIfSet="false" required="false"/>
+        <instructions substitution="false">Generated instruction text for step: Report-IBM-Db2-Tools-Error-Sysmod
+Update this field with your own text</instructions>
+        <weight>1</weight>
+        <autoEnable>true</autoEnable>
+        <canMarkAsFailed>true</canMarkAsFailed>
+        <template>
+            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
+//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
+//*--------------------------------------------------------------------*
+//* REPORT ON ERROR SYSMODS                                            *
+//* N.B ALSO RUN FIXCATRP                                              *
+//* N.B THIS JOB ALSO CONTAINS THE REPORT MISSINGFIX                   *
+//*--------------------------------------------------------------------*
+//STEP1    EXEC PGM=GIMSMP,REGION=0M,                                   
+//            PARM='PROCESS=WAIT',                                      
+//            DYNAMNBR=120                                              
+//SMPCSI   DD DSN=SMPE.${instance-MAINT_LVL}.DB2TOOLS.GLOBAL.CSI,DISP=SHR        
+//SMPOUT   DD SYSOUT=*                                                  
+//SMPRPT   DD SYSOUT=*                                                  
+//SMPLIST  DD SYSOUT=*                                                  
+//SYSPRINT DD SYSOUT=*                                                  
+//SMPCNTL  DD *                                                         
+  SET BDY(GLOBAL).                                                      
+  REPORT ERRSYSMODS ZONES(${instance-TGTZONE}).                                  
+  REPORT MISSINGFIX ZONES(${instance-TGTZONE}) FIXCAT(IBM*).                     
+/*                                                                      
+//*                                                                     </inlineTemplate>
+            <submitAs maxRc="4">JCL</submitAs>
+            <maxLrecl>80</maxLrecl>
+        </template>
+    </step>
+    
+    <!-- ====================================================================
+         Step 6: Broadcom-Db2-Tools-Receive (Original JCL)
+         ==================================================================== -->
+    
+    <step name="Broadcom-Db2-Tools-Receive" optional="false">
+        <title>Broadcom-Db2-Tools-Receive</title>
+        <description>Broadcom-Db2-Tools-Receive</description>
+        <variableValue name="MAINT_LVL" scope="instance" noPromptIfSet="false" required="false"/>
+        <variableValue name="CATOOLS_MOUNT_POINT" scope="instance" noPromptIfSet="false" required="false"/>
+        <variableValue name="JAVA_HOME" scope="instance" noPromptIfSet="false" required="false"/>
+        <instructions substitution="false">Generated instruction text for step: Broadcom-Db2-Tools-Receive
+Update this field with your own text</instructions>
+        <weight>1</weight>
+        <autoEnable>true</autoEnable>
+        <canMarkAsFailed>true</canMarkAsFailed>
+        <template>
+            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
+//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
+//*                                                                    
+//* CHANGE THE SOURCEID CHANGE THE SOURCEID CHANGE THE SOURCEID        
+//*                                                                    
+//*                                                                    
+//* MOUNT SYSD.SHOPZ.${instance-MAINT_LVL}.DB2.ZFS FOR DOWNLOAD OF SHOPZ ORDERS 
+//*                                                                    
+//DB2MNT   EXEC PGM=IKJEFT01,DYNAMNBR=50,REGION=8M                     
+//SYSTSPRT DD SYSOUT=*                                                 
+//SYSTSIN  DD *                                                        
+  MOUNT FILESYSTEM('SYSD.SHOPZ.${instance-MAINT_LVL}.DB2.CATOOLS.ZFS') +        
+        MOUNTPOINT('${instance-CATOOLS_MOUNT_POINT}')       +                
+        TYPE(ZFS)  MODE(RDWR)                                          
+/*                                                                     
+//*                                                                    
+//   IF DB2MNT.RC NE 0 THEN                                            
+//DB2FAIL  EXEC PGM=IEFBR14                                            
+//   ENDIF                                                             
+//*                                                                    
+//*--------------------------------------------------------------------
+//*   D150617: receive DB2 Product Upgrades                            
+//*--------------------------------------------------------------------
+//DB2SMP1 EXEC PGM=GIMSMP,REGION=0M,                  &lt;=== NOTE 1      
+//             PARM='PROCESS=WAIT'                                     
+//SMPNTS   DD  PATHDISP=KEEP,                                          
+//             PATH='${instance-CATOOLS_MOUNT_POINT}'          &lt;=== NOTE 2   
+//SMPJHOME DD  PATHDISP=KEEP,                                          
+//             PATH='${instance-JAVA_HOME}'              &lt;=== NOTE 6      
+//*SMPOUT   DD  SYSOUT=*                                               
+//SMPOUT   DD  DISP=SHR,DSN=SYSD.PC5V5.SMPOUT.CA.IN                    
+//SMPRPT   DD  SYSOUT=*                                                
+//SMPLIST  DD  SYSOUT=*                                                
+//SMPLOG   DD  SYSOUT=*                                                
+//SYSPRINT DD  SYSOUT=*                                                
+//SYSUT1   DD  UNIT=SYSALLDA,SPACE=(6160,(9000,5000))                  
+//SYSUT2   DD  UNIT=SYSALLDA,SPACE=(6160,(9000,5000))                  
+//SYSUT3   DD  UNIT=SYSALLDA,SPACE=(6160,(9000,5000))                  
+//SYSUT4   DD  UNIT=SYSALLDA,SPACE=(6160,(9000,5000))                  
+//SMPCSI   DD DISP=SHR,DSN=SMPE.${instance-MAINT_LVL}.DB2.CATOOLS.GLOBAL.CSI    
+//ORDSERVR DD  DISP=SHR,DSN=SYSD.PC5V5.SMP.INSTALL.JCL(SERVINFO)        
+//CLNTINFO DD  DISP=SHR,DSN=SYSD.PC5V5.SMP.INSTALL.JCL(CLNTCAIN)        
+//SMPCNTL  DD  *                                                        
+  SET      BOUNDARY (GLOBAL) .                                          
+  RECEIVE                                                               
+          ORDER(                                                        
+           ORDERSERVER(ORDSERVR)                                        
+           CLIENT(CLNTINFO)                                             
+           CONTENT(ALL)                                                 
+      /*   TRANSFERONLY */                                              
+                        ).                                              
+/*                                                                      
+//SMPCPATH DD PATH='/usr/lpp/smp/classes',PATHDISP=KEEP                 
+//*                                                                     
+//*                                                                     
+//* UNMOUNT SYSD.SHOPZ.${instance-MAINT_LVL}.DB2.ZFS FOR DOWNLOAD OF SHOPZ ORDERS
+//*                                                                     
+//DB2UMN   EXEC PGM=IKJEFT01,DYNAMNBR=50,REGION=8M                      
+//SYSTSPRT DD SYSOUT=*                                                  
+//SYSTSIN  DD *                                                
+  UNMOUNT FILESYSTEM('SYSD.SHOPZ.${instance-MAINT_LVL}.DB2.CATOOLS.ZFS')
+/*                                                             
+//*                                                            
+//   IF DB2UMN.RC NE 0 THEN                                    
+//DB2FAIL2 EXEC PGM=IEFBR14                                    
+//   ENDIF                                                     </inlineTemplate>
+            <submitAs maxRc="4">JCL</submitAs>
+            <maxLrecl>80</maxLrecl>
+        </template>
+    </step>
+    
+    <!-- ====================================================================
+         Step 7: Broadcom-Report-Error-sysmod (Original JCL with FTP)
+         ==================================================================== -->
+    
+    <step name="Broadcom-Report-Error-sysmod" optional="false">
+        <title>Broadcom-Report-Error-sysmod</title>
+        <description>Broadcom-Report-Error-sysmod</description>
+        <variableValue name="MAINT_LVL" scope="instance" noPromptIfSet="false" required="false"/>
+        <variableValue name="TGTZONE" scope="instance" noPromptIfSet="false" required="false"/>
+        <variableValue name="FTP_PROXY" scope="instance" noPromptIfSet="false" required="false"/>
+        <variableValue name="FTP_EMAIL" scope="instance" noPromptIfSet="false" required="false"/>
+        <instructions substitution="false">Generated instruction text for step: Broadcom-Report-Error-sysmod
+Update this field with your own text</instructions>
+        <weight>1</weight>
+        <autoEnable>true</autoEnable>
+        <canMarkAsFailed>true</canMarkAsFailed>
+        <template>
+            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
+//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
+//* JCL IN SYSD.${instance-MAINT_LVL}.CPFLK00.DB2.CATOOLS.SMPJCL(DBM60RCH)      
+//*                                                                    
+//*********************************************************************
+//* MEMBER: DBM60RCH                                                  *
+//*********************************************************************
+//*                                                                   *
+//* This member contains JCL to download HOLDDATA from CA Support     *
+//* Online, RECEIVE the HOLDDATA and report on any SYSMODs applied    *
+//* but marked IN ERROR.                                              *
+//*                                                                   *
+//*********************************************************************
+//*                                                                   *
+//* The following steps will be executed:                             *
+//*                                                                   *
+//* 1. Download ERROR and FIXCAT HOLDDATA from CSO.                   *
+//*                                                                   *
+//*    Some sites require a SYSTCPD dataset.  If it is needed at your *
+//*    site, uncomment the SYSTCPD DD statement and provide the       *
+//*    dataset name from the TCPIP started task SYSTCPD DD statement. *
+//*                                                                   *
+//* 2. RECEIVE the HOLDDATA into your CSI.                            *
+//*                                                                   *
+//* 3. Report on any SMP/e maintenance that has been install (applied)*
+//*    but is marked "in error".  Sites are encouraged to review      *
+//*    the output to determine if any applied maintenance has a       *
+//*    reported problem.                                              *
+//*                                                                   *
+//* Execute the DBMSEDIT edit macro to customize this JOB for your     
+//* environment, then submit the job.                                 *
+//*                                                                   *
+//*                                                                   *
+//*********************************************************************
+//*********************************************************************
+//* Copyright (C) 2017 CA.   All Rights Reserved.                     *
+//*********************************************************************
+//*                                                                    
+//*********************************************************************
+//*                                                                   *
+//* Download the ERROR and FIXCAT HOLDDATA from CSO                   *
+//*                                                                   *
+//*********************************************************************
+//DELETE EXEC PGM=IDCAMS                                               
+//SYSPRINT DD SYSOUT=*                                                 
+//SYSOUT DD SYSOUT=*                                                   
+//SYSIN DD *                                                           
+   DELETE SMPE.${instance-MAINT_LVL}.DB2.CATOOLS.HOLDDATA 
+   SET MAXCC=0                       
+/*                                                                     
+//FTPSTEP EXEC PGM=FTP,PARM='${instance-FTP_PROXY}'                    
+//*SYSTCPD  DD DISP=SHR,DSN=....                                       
+//SYSPRINT DD  SYSOUT=*                                                
+//OUTPUT   DD  SYSOUT=*                                                
+//INPUT    DD  *                                                       
+anonymous@ftp.ca.com ${instance-FTP_EMAIL}                             
+cd /pub/HoldData/                                                      
+dir                                                                    
+asc                                                                    
+locsite LR=80 REC=FB BLOCKSI=0                                         
+locsite PRI=20 SEC=10 CY                                               
+ GET ALL-HOLDDATA.TXT 'SMPE.${instance-MAINT_LVL}.DB2.CATOOLS.HOLDDATA' (REPLACE
+quit                                                                   
+//*********************************************************************
+//*                                                                   *
+//* RECEIVE the HOLDDATA into your CSI                                *
+//*                                                                   *
+//* The error HOLDDATA bucket should be received before applying      *
+//* any maintenance.                                                  *
+//*                                                                   *
+//* Execute the DBMSEDIT edit macro to customize this JOB for your    *
+//* environment, then submit the job.                                 *
+//*                                                                   *
+//*********************************************************************
+//*                                                                    
+//RECEIVE  EXEC PGM=GIMSMP,PARM='DATE=U',REGION=0M                     
+//SMPCSI    DD DISP=SHR,DSN=SMPE.${instance-MAINT_LVL}.DB2.CATOOLS.GLOBAL.CSI   
+//SMPHOLD   DD DISP=SHR,DSN=SMPE.${instance-MAINT_LVL}.DB2.CATOOLS.HOLDDATA     
+//SMPCNTL   DD   *                                                     
+SET BOUNDARY(GLOBAL).                                                  
+RECEIVE HOLDDATA .                                                     
+/*                                                                     
+//*********************************************************************
+//*                                                                   *
+//* REPORT ANY SYSMODS APPLIED BUT MARKED IN ERROR                    *
+//*                                                                   *
+//* This step reports on any SMP/e maintenance that has been          *
+//* installed (applied) but is now marked in error.  Sites are        *
+//* encouraged to review the output to determine if any applied       *
+//* maintenance has a reported problem.                               *
+//*                                                                   *
+//*********************************************************************
+//RPTERROR EXEC PGM=GIMSMP,PARM='DATE=U',REGION=0M                     
+//SMPCSI   DD DISP=SHR,DSN=SMPE.${instance-MAINT_LVL}.DB2.CATOOLS.GLOBAL.CSI    
+//SMPCNTL  DD *                                                        
+ SET BOUNDARY ( GLOBAL ) .                        
+ REPORT ERRSYSMODS ZONES(${instance-TGTZONE}) .            
+ REPORT MISSINGFIX ZONES(${instance-TGTZONE}) FIXCAT(CA*). 
+/*                                                </inlineTemplate>
+            <submitAs maxRc="4">JCL</submitAs>
+            <maxLrecl>80</maxLrecl>
+        </template>
+    </step>
+</workflow>
