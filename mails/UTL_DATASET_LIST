@@ -67,3 +67,175 @@ ORDER BY
 ```
 
 Run this on the “other system” and it’ll tell you which table(s) have those three columns, if any.
+
+***
+Nice, that list helps a lot 🙂
+Now let’s do it in two clear steps:
+
+---
+
+## 1️⃣ On the system **where `UTL_DATASET_LIST` exists**
+
+First get its structure:
+
+```sql
+-- structure of DB2BATC.UTL_DATASET_LIST
+SELECT
+    c.colno,
+    c.name       AS column_name,
+    c.coltype,
+    c.length,
+    c.scale
+FROM
+    sysibm.syscolumns c
+WHERE
+    c.tbcreator = 'DB2BATC'
+    AND c.tbname = 'UTL_DATASET_LIST'
+ORDER BY
+    c.colno;
+```
+
+Optionally peek at the data:
+
+```sql
+SELECT *
+FROM DB2BATC.UTL_DATASET_LIST
+FETCH FIRST 50 ROWS ONLY;
+```
+
+From this you’ll see exactly which columns it has (beyond `DBNAME`, `OBJNAME`, `PARTITION`) and roughly what the rows look like.
+
+---
+
+## 2️⃣ On the **EUPAGB** system
+
+You’ve found these candidate tables:
+
+```text
+DD2_DATASET_LIST
+DD2_EAV_DATASET_LIST
+DD2_EAV_DATASET_MOVE
+DD2_EAV_DATASET_MOVETEMP
+DD2_EAV_DATASET_MOVE_DSN
+DD2_EAV_DATASET_MOVE_DSN_TEMP
+DD2_EAV_DATASET_MOVE_WORK
+DD2_EAV_DATASET_MOVE_WORK_TEMP
+DD2_EAV_DATASET_REPORT
+DD2_EAV_DATA_HIST
+DD2_EAV_LISTDEF_TEMP
+DD2_EAV_LISTDEF_TEMP_CAT
+DD2_EAV_LISTDEF_TEMP_DSN
+DD2_LISTDEF_TEMP
+SYSPENDINGDDL
+SYSPENDINGOBJECTS
+```
+
+### 2a) Find creators for those tables
+
+```sql
+SELECT creator, name, type
+FROM   sysibm.systables
+WHERE  name IN ('DD2_DATASET_LIST',
+                'DD2_EAV_DATASET_LIST',
+                'DD2_EAV_DATASET_MOVE',
+                'DD2_EAV_DATASET_MOVETEMP',
+                'DD2_EAV_DATASET_MOVE_DSN',
+                'DD2_EAV_DATASET_MOVE_DSN_TEMP',
+                'DD2_EAV_DATASET_MOVE_WORK',
+                'DD2_EAV_DATASET_MOVE_WORK_TEMP',
+                'DD2_EAV_DATASET_REPORT',
+                'DD2_EAV_DATA_HIST',
+                'DD2_EAV_LISTDEF_TEMP',
+                'DD2_EAV_LISTDEF_TEMP_CAT',
+                'DD2_EAV_LISTDEF_TEMP_DSN',
+                'DD2_LISTDEF_TEMP',
+                'SYSPENDINGDDL',
+                'SYSPENDINGOBJECTS')
+ORDER BY creator, name;
+```
+
+Then you’ll know e.g. `DB2BATC.DD2_DATASET_LIST`, `DB2BATC.DD2_EAV_DATASET_LIST`, etc.
+
+### 2b) Compare structures to `UTL_DATASET_LIST`
+
+List all columns for those candidates:
+
+```sql
+SELECT
+    c.tbcreator,
+    c.tbname,
+    c.colno,
+    c.name   AS column_name,
+    c.coltype,
+    c.length,
+    c.scale
+FROM
+    sysibm.syscolumns c
+WHERE
+    c.tbname IN ('DD2_DATASET_LIST',
+                 'DD2_EAV_DATASET_LIST',
+                 'DD2_EAV_DATASET_MOVE',
+                 'DD2_EAV_DATASET_MOVETEMP',
+                 'DD2_EAV_DATASET_MOVE_DSN',
+                 'DD2_EAV_DATASET_MOVE_DSN_TEMP',
+                 'DD2_EAV_DATASET_MOVE_WORK',
+                 'DD2_EAV_DATASET_MOVE_WORK_TEMP',
+                 'DD2_EAV_DATASET_REPORT',
+                 'DD2_EAV_DATA_HIST',
+                 'DD2_EAV_LISTDEF_TEMP',
+                 'DD2_EAV_LISTDEF_TEMP_CAT',
+                 'DD2_EAV_LISTDEF_TEMP_DSN',
+                 'DD2_LISTDEF_TEMP')
+ORDER BY
+    c.tbcreator,
+    c.tbname,
+    c.colno;
+```
+
+Focus on the ones that have `DBNAME`, `OBJNAME`, `PARTITION`:
+
+```sql
+SELECT
+    c.tbcreator,
+    c.tbname,
+    c.name AS column_name
+FROM
+    sysibm.syscolumns c
+WHERE
+    c.tbname IN ('DD2_DATASET_LIST',
+                 'DD2_EAV_DATASET_LIST',
+                 'DD2_EAV_DATASET_MOVE',
+                 'DD2_EAV_DATASET_MOVETEMP',
+                 'DD2_EAV_DATASET_MOVE_DSN',
+                 'DD2_EAV_DATASET_MOVE_DSN_TEMP',
+                 'DD2_EAV_DATASET_MOVE_WORK',
+                 'DD2_EAV_DATASET_MOVE_WORK_TEMP',
+                 'DD2_EAV_DATASET_REPORT',
+                 'DD2_EAV_DATA_HIST',
+                 'DD2_EAV_LISTDEF_TEMP',
+                 'DD2_EAV_LISTDEF_TEMP_CAT',
+                 'DD2_EAV_LISTDEF_TEMP_DSN',
+                 'DD2_LISTDEF_TEMP')
+  AND UPPER(c.name) IN ('DBNAME','OBJNAME','PARTITION')
+ORDER BY
+    c.tbcreator,
+    c.tbname,
+    c.name;
+```
+
+### 2c) Look at the data in the most promising table(s)
+
+Once you see which table has the same column set / order as `UTL_DATASET_LIST` (very likely `DD2_DATASET_LIST` or `DD2_EAV_DATASET_LIST`), just sample the rows:
+
+```sql
+SELECT *
+FROM <CREATOR>.DD2_DATASET_LIST
+FETCH FIRST 50 ROWS ONLY;
+
+-- and/or
+SELECT *
+FROM <CREATOR>.DD2_EAV_DATASET_LIST
+FETCH FIRST 50 ROWS ONLY;
+```
+
+Comparing those results to `DB2BATC.UTL_DATASET_LIST` from step 1 will tell you which one is your real equivalent on EUPAGB.
