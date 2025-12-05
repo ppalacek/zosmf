@@ -239,3 +239,147 @@ FETCH FIRST 50 ROWS ONLY;
 ```
 
 Comparing those results to `DB2BATC.UTL_DATASET_LIST` from step 1 will tell you which one is your real equivalent on EUPAGB.
+
+
+*******************STORAGE*****************
+
+Short answer: there isn’t a single “VCAT default” column in the catalog, but you can get **both**:
+
+1. The “real” default VCAT (what Db2 uses for SYSDEFLT / catalog data sets), and
+2. The **most common VCAT** used by your user objects,
+
+all with catalog queries.
+
+---
+
+## 1️⃣ What is `VCATNAME = '00000001'`?
+
+`'00000001'` (or the hex X'0000000000000001') is just an **internal placeholder** that Db2 uses in some catalog tables instead of the real ICF catalog name. Tools/docs mention that Db2-created data sets can have `VCATNAME = '00000001'` internally. ([techdocs.broadcom.com][1])
+
+The *real* VCAT for those objects is:
+
+* The **Catalog Alias ZPARM** (QWP6CATN – “Catalog Alias”) that defines the ICF catalog for Db2 catalog/directory VSAM data sets; ([ibm.com][2])
+* Or, for user objects, the VCAT of the **storage group** they are in.
+
+That’s why your CASE
+
+```sql
+CASE WHEN T.VCATNAME = '00000001'
+          OR T.VCATNAME = X'0000000000000001'
+     THEN 'DB2DQ0A'
+     ELSE RTRIM(T.VCATNAME)
+END
+```
+
+works: on that subsystem, the DSNZPARM “Catalog Alias” (and the VCAT for SYSDEFLT) is `DB2DQ0A`, so you’re manually mapping the internal `00000001` -> real catalog name.
+
+You just don’t want to hardcode it. 👍
+
+---
+
+## 2️⃣ Get the “default” VCAT from SYSSTOGROUP (recommended)
+
+For most user data, Db2 uses stogroup **SYSDEFLT** and “uses the VCAT name associated with SYSDEFLT as a high-level qualifier for the Db2 data sets for all objects of this storage group”. ([help.sap.com][3])
+
+So, simplest “default VCAT” from catalog:
+
+```sql
+SELECT VCATNAME
+FROM   SYSIBM.SYSSTOGROUP
+WHERE  NAME = 'SYSDEFLT';
+```
+
+On your system that should return `DB2DQ0A` (or whatever your default catalog is).
+
+You can then fold that into your query instead of hardcoding:
+
+```sql
+,CASE 
+   WHEN T.VCATNAME = '00000001'
+     OR T.VCATNAME = X'0000000000000001' THEN 
+        (SELECT VCATNAME 
+           FROM SYSIBM.SYSSTOGROUP 
+          WHERE NAME = 'SYSDEFLT')
+   ELSE RTRIM(T.VCATNAME)
+ END AS VCATNAME_RESOLVED
+```
+
+(That scalar subselect is constant for the whole query, so performance is fine.)
+
+---
+
+## 3️⃣ See which VCAT is used “by majority of objects”
+
+If you just want to confirm what the dominant VCAT is in the system, you can count per VCAT directly:
+
+```sql
+SELECT T.VCATNAME,
+       COUNT(*) AS OBJ_COUNT
+FROM   SYSIBM.SYSTABLEPART T   -- or SYSINDEXPART, or both in a UNION
+GROUP BY T.VCATNAME
+ORDER BY OBJ_COUNT DESC;
+```
+
+You’ll see something like:
+
+```text
+VCATNAME   OBJ_COUNT
+---------  ---------
+00000001   1200   <- internal placeholder (catalog/directory)
+DB2DQ0A     950   <- your main user VCAT
+...
+```
+
+If you want to ignore the placeholder in this overview:
+
+```sql
+SELECT T.VCATNAME,
+       COUNT(*) AS OBJ_COUNT
+FROM   SYSIBM.SYSTABLEPART T
+WHERE  T.VCATNAME <> '00000001'
+GROUP BY T.VCATNAME
+ORDER BY OBJ_COUNT DESC;
+```
+
+The top row is effectively your “majority VCAT”.
+
+---
+
+## 4️⃣ Optional: infer the VCAT from your dataset list
+
+Because `DD2_DATASET_LIST` has the real DSN, you *could* also infer the catalog HLQ for objects with `VCATNAME = '00000001'` like this:
+
+```sql
+SELECT SUBSTR(D.DSN,1,8) AS VCAT_FROM_DSN,
+       COUNT(*)          AS N
+FROM   SYSIBM.SYSTABLEPART T
+JOIN   DP2D2E0.DD2_DATASET_LIST D
+  ON   T.DBNAME    = D.DBNAME
+ AND   T.TSNAME    = D.OBJNAME
+ AND   T.PARTITION = D.PARTITION
+WHERE  T.VCATNAME = '00000001'
+GROUP BY SUBSTR(D.DSN,1,8)
+ORDER BY N DESC;
+```
+
+The top `VCAT_FROM_DSN` you get there should be the same as:
+
+```sql
+SELECT VCATNAME
+FROM   SYSIBM.SYSSTOGROUP
+WHERE  NAME = 'SYSDEFLT';
+```
+
+---
+
+### TL;DR for your query
+
+* Use **SYSSTOGROUP.SYSDEFLT.VCATNAME** as your “default VCAT”.
+* Keep treating `VCATNAME = '00000001'` as “use that default”.
+* If you like, sanity-check by counting VCATs across SYSTABLEPART/SYSINDEXPART.
+
+That should give you a clean, non-hardcoded VCAT in your “missing dataset” SQL.
+
+[1]: https://techdocs.broadcom.com/us/en/ca-mainframe-software/performance-and-storage/ca-vantage-storage-resource-manager/14-1/configuring/system-parameters/vkgparms-parameter-descriptions.html?utm_source=chatgpt.com "VKGPARMS Parameter Descriptions - TechDocs"
+[2]: https://www.ibm.com/docs/en/om-db2/5.5.0?topic=managers-dsnzparm-data-parameters&utm_source=chatgpt.com "DSNZPARM Data Parameters"
+[3]: https://help.sap.com/doc/d608ea58ac9d44d7b53e95b679879fdd/CURRENT_VERSION/en-US/db2_administration_guide_v13.pdf?utm_source=chatgpt.com "Database Administration Guide for SAP on IBM Db2 for z/OS"
