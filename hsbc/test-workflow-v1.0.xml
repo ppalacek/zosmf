@@ -1,0 +1,319 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+================================================================================
+  Simple Test Workflow - Version 1.0
+================================================================================
+  A simple workflow for testing z/OSMF workflow functionality
+  
+  This workflow demonstrates:
+  - ZFS dataset deletion (if exists)
+  - ZFS dataset allocation
+  - ZFS mounting
+  - File creation in ZFS
+  - ZFS unmounting
+  
+  PREREQUISITES:
+  - Authority to allocate datasets in SYSD HLQ
+  - Mount point /tmp must be available
+  - Appropriate RACF/security permissions
+  
+  See companion properties file: test-workflow-defaults-v1.0.properties
+================================================================================
+-->
+<workflow>
+    <autoTakeOwnership>false</autoTakeOwnership>
+    <workflowInfo>
+        <workflowID scope="none">test-workflow</workflowID>
+        <workflowDescription>Simple Test Workflow for z/OSMF Testing</workflowDescription>
+        <workflowVersion>1.0</workflowVersion>
+        <vendor>HSBC</vendor>
+        <Provisioning>
+            <productID>5740-XYR00</productID>
+            <productName>IBM z/OS Management Facility</productName>
+            <productVersion>Version 2.4</productVersion>
+        </Provisioning>
+    </workflowInfo>
+    
+    <!-- ====================================================================
+         VARIABLE DEFINITIONS
+    ==================================================================== -->
+    
+    <variable name="MAINT_LVL" scope="instance" visibility="public">
+        <label>Maintenance Level</label>
+        <abstract>Maintenance level identifier (e.g., PC5V620)</abstract>
+        <description>This identifier is used in dataset naming conventions</description>
+        <category>General</category>
+        <string>
+            <minLength>1</minLength>
+            <maxLength>8</maxLength>
+            <default>PC5V620</default>
+        </string>
+    </variable>
+    
+    <variable name="USER_ID" scope="instance" visibility="public">
+        <label>User ID</label>
+        <abstract>TSO User ID for JCL job cards</abstract>
+        <description>Your TSO user ID used in JCL job statements</description>
+        <category>General</category>
+        <string>
+            <minLength>1</minLength>
+            <maxLength>8</maxLength>
+            <default>D33553</default>
+        </string>
+    </variable>
+    
+    <variable name="TEST_MOUNT_POINT" scope="instance" visibility="public">
+        <label>Test Mount Point</label>
+        <abstract>Mount point for test ZFS filesystem</abstract>
+        <description>Directory path where the test ZFS will be mounted</description>
+        <category>Test Configuration</category>
+        <string>
+            <minLength>1</minLength>
+            <maxLength>255</maxLength>
+            <default>/tmp/testWorkflow</default>
+        </string>
+    </variable>
+    
+    <atCreate name="MAINT_LVL" scope="instance" required="true" prompt="false"/>
+    
+    <!-- ====================================================================
+         STEP 1: DELETE TEST ZFS IF IT EXISTS
+    ==================================================================== -->
+    
+    <step name="Delete-Test-ZFS" optional="false">
+        <title>Delete Test ZFS Dataset</title>
+        <description>Delete the test ZFS dataset if it already exists</description>
+        <variableValue name="MAINT_LVL" scope="instance" noPromptIfSet="false" required="true"/>
+        <variableValue name="USER_ID" scope="instance" noPromptIfSet="false" required="true"/>
+        <instructions substitution="true">
+This step deletes the test ZFS dataset if it already exists.
+
+Dataset to be deleted:
+  - SYSD.SHOPZ.${instance-MAINT_LVL}.TEST.ZFS
+
+This step uses IDCAMS DELETE with the IF MAXCC=0 THEN clause to prevent
+errors if the dataset doesn't exist.
+
+Review the output to confirm the deletion or non-existence of the dataset.
+        </instructions>
+        <weight>1</weight>
+        <autoEnable>true</autoEnable>
+        <canMarkAsFailed>false</canMarkAsFailed>
+        <template>
+            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
+//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
+//********************************************************************
+//* DELETE TEST ZFS DATASET IF IT EXISTS
+//********************************************************************
+//DELETE   EXEC PGM=IDCAMS
+//SYSPRINT DD SYSOUT=*
+//SYSIN    DD *
+  DELETE SYSD.SHOPZ.${instance-MAINT_LVL}.TEST.ZFS PURGE
+  IF MAXCC=8 THEN SET MAXCC=0
+/*
+</inlineTemplate>
+            <submitAs maxRc="0">JCL</submitAs>
+        </template>
+    </step>
+    
+    <!-- ====================================================================
+         STEP 2: ALLOCATE TEST ZFS
+    ==================================================================== -->
+    
+    <step name="Allocate-Test-ZFS" optional="false">
+        <title>Allocate Test ZFS Dataset</title>
+        <description>Allocate a 100 MB ZFS dataset for testing</description>
+        <variableValue name="MAINT_LVL" scope="instance" noPromptIfSet="false" required="true"/>
+        <variableValue name="USER_ID" scope="instance" noPromptIfSet="false" required="true"/>
+        <instructions substitution="true">
+This step allocates a new ZFS dataset for testing purposes.
+
+Dataset specifications:
+  - Dataset Name: SYSD.SHOPZ.${instance-MAINT_LVL}.TEST.ZFS
+  - Size: 100 MB (approximately 12,500 tracks on 3390 device)
+  - Type: ZFS (z/OS File System)
+
+The dataset will be formatted as a ZFS filesystem after allocation.
+
+Review the output to confirm successful allocation and formatting.
+        </instructions>
+        <weight>1</weight>
+        <autoEnable>true</autoEnable>
+        <canMarkAsFailed>false</canMarkAsFailed>
+        <template>
+            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
+//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
+//********************************************************************
+//* ALLOCATE TEST ZFS DATASET (100 MB)
+//********************************************************************
+//ALLOC    EXEC PGM=IDCAMS
+//SYSPRINT DD SYSOUT=*
+//SYSIN    DD *
+  DEFINE CLUSTER (NAME(SYSD.SHOPZ.${instance-MAINT_LVL}.TEST.ZFS) -
+    LINEAR -
+    TRACKS(12500 1250) -
+    SHAREOPTIONS(3) -
+    DATACLASS(DCEXTZFS) -
+    VOLUMES(*) ) -
+  DATA (NAME(SYSD.SHOPZ.${instance-MAINT_LVL}.TEST.ZFS.DATA))
+/*
+//FORMAT   EXEC PGM=IOEAGFMT,REGION=0M,
+//         PARM='-aggregate SYSD.SHOPZ.${instance-MAINT_LVL}.TEST.ZFS -compat'
+//SYSPRINT DD SYSOUT=*
+//STDOUT   DD SYSOUT=*
+//STDERR   DD SYSOUT=*
+//SYSUDUMP DD SYSOUT=*
+</inlineTemplate>
+            <submitAs maxRc="0">JCL</submitAs>
+        </template>
+    </step>
+    
+    <!-- ====================================================================
+         STEP 3: MOUNT TEST ZFS
+    ==================================================================== -->
+    
+    <step name="Mount-Test-ZFS" optional="false">
+        <title>Mount Test ZFS Dataset</title>
+        <description>Mount the test ZFS to the specified mount point</description>
+        <variableValue name="MAINT_LVL" scope="instance" noPromptIfSet="false" required="true"/>
+        <variableValue name="USER_ID" scope="instance" noPromptIfSet="false" required="true"/>
+        <variableValue name="TEST_MOUNT_POINT" scope="instance" noPromptIfSet="false" required="true"/>
+        <instructions substitution="true">
+This step mounts the test ZFS dataset to the filesystem.
+
+Mount configuration:
+  - Dataset: SYSD.SHOPZ.${instance-MAINT_LVL}.TEST.ZFS
+  - Mount Point: ${instance-TEST_MOUNT_POINT}
+  - Mode: Read/Write (RDWR)
+  - Type: ZFS
+
+The mount point directory will be created if it doesn't exist.
+
+Review the output to confirm successful mounting.
+        </instructions>
+        <weight>1</weight>
+        <autoEnable>true</autoEnable>
+        <canMarkAsFailed>false</canMarkAsFailed>
+        <template>
+            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
+//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
+//********************************************************************
+//* MOUNT TEST ZFS DATASET
+//********************************************************************
+//MOUNT    EXEC PGM=IKJEFT01,DYNAMNBR=50,REGION=8M
+//SYSTSPRT DD SYSOUT=*
+//SYSTSIN  DD *
+  MKDIR '${instance-TEST_MOUNT_POINT}' MODE(755)
+  MOUNT FILESYSTEM('SYSD.SHOPZ.${instance-MAINT_LVL}.TEST.ZFS') +
+        MOUNTPOINT('${instance-TEST_MOUNT_POINT}') +
+        TYPE(ZFS) MODE(RDWR)
+/*
+//   IF MOUNT.RC NE 0 THEN
+//FAIL     EXEC PGM=IEFBR14
+//   ENDIF
+</inlineTemplate>
+            <submitAs maxRc="0">JCL</submitAs>
+        </template>
+    </step>
+    
+    <!-- ====================================================================
+         STEP 4: CREATE TEST FILE WITH CURRENT DATE
+    ==================================================================== -->
+    
+    <step name="Create-Test-File" optional="false">
+        <title>Create Test File with Current Date</title>
+        <description>Create a test file in the mounted ZFS with current date</description>
+        <variableValue name="MAINT_LVL" scope="instance" noPromptIfSet="false" required="true"/>
+        <variableValue name="USER_ID" scope="instance" noPromptIfSet="false" required="true"/>
+        <variableValue name="TEST_MOUNT_POINT" scope="instance" noPromptIfSet="false" required="true"/>
+        <instructions substitution="true">
+This step creates a test file in the mounted ZFS filesystem.
+
+File details:
+  - Location: ${instance-TEST_MOUNT_POINT}/test_file.txt
+  - Content: Current date and timestamp
+  - Permissions: 644 (rw-r--r--)
+
+The file will contain information about when the workflow was executed.
+
+Review the output to confirm the file was created and verify its contents.
+        </instructions>
+        <weight>1</weight>
+        <autoEnable>true</autoEnable>
+        <canMarkAsFailed>false</canMarkAsFailed>
+        <template>
+            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
+//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
+//********************************************************************
+//* CREATE TEST FILE WITH CURRENT DATE
+//********************************************************************
+//CREATE   EXEC PGM=IKJEFT01,DYNAMNBR=50,REGION=8M
+//SYSTSPRT DD SYSOUT=*
+//SYSTSIN  DD *
+  BPXBATCH SH +
+  echo "Test Workflow Execution Report" > ${instance-TEST_MOUNT_POINT}/test_file.txt; +
+  echo "================================" >> ${instance-TEST_MOUNT_POINT}/test_file.txt; +
+  echo "" >> ${instance-TEST_MOUNT_POINT}/test_file.txt; +
+  echo "Execution Date: $(date)" >> ${instance-TEST_MOUNT_POINT}/test_file.txt; +
+  echo "User: ${instance-USER_ID}" >> ${instance-TEST_MOUNT_POINT}/test_file.txt; +
+  echo "Maintenance Level: ${instance-MAINT_LVL}" >> ${instance-TEST_MOUNT_POINT}/test_file.txt; +
+  echo "Mount Point: ${instance-TEST_MOUNT_POINT}" >> ${instance-TEST_MOUNT_POINT}/test_file.txt; +
+  echo "" >> ${instance-TEST_MOUNT_POINT}/test_file.txt; +
+  echo "Workflow executed successfully!" >> ${instance-TEST_MOUNT_POINT}/test_file.txt; +
+  chmod 644 ${instance-TEST_MOUNT_POINT}/test_file.txt; +
+  echo ""; +
+  echo "File created. Contents:"; +
+  echo ""; +
+  cat ${instance-TEST_MOUNT_POINT}/test_file.txt
+/*
+</inlineTemplate>
+            <submitAs maxRc="0">JCL</submitAs>
+        </template>
+    </step>
+    
+    <!-- ====================================================================
+         STEP 5: UNMOUNT TEST ZFS
+    ==================================================================== -->
+    
+    <step name="Unmount-Test-ZFS" optional="false">
+        <title>Unmount Test ZFS Dataset</title>
+        <description>Unmount the test ZFS filesystem</description>
+        <variableValue name="MAINT_LVL" scope="instance" noPromptIfSet="false" required="true"/>
+        <variableValue name="USER_ID" scope="instance" noPromptIfSet="false" required="true"/>
+        <variableValue name="TEST_MOUNT_POINT" scope="instance" noPromptIfSet="false" required="true"/>
+        <instructions substitution="true">
+This step unmounts the test ZFS filesystem.
+
+Unmount details:
+  - Dataset: SYSD.SHOPZ.${instance-MAINT_LVL}.TEST.ZFS
+  - Mount Point: ${instance-TEST_MOUNT_POINT}
+
+After unmounting, the ZFS dataset will remain allocated but will not be
+accessible through the filesystem. The test file created in the previous
+step is safely stored in the ZFS dataset.
+
+Review the output to confirm successful unmounting.
+        </instructions>
+        <weight>1</weight>
+        <autoEnable>true</autoEnable>
+        <canMarkAsFailed>false</canMarkAsFailed>
+        <template>
+            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
+//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
+//********************************************************************
+//* UNMOUNT TEST ZFS DATASET
+//********************************************************************
+//UNMOUNT  EXEC PGM=IKJEFT01,DYNAMNBR=50,REGION=8M
+//SYSTSPRT DD SYSOUT=*
+//SYSTSIN  DD *
+  UNMOUNT FILESYSTEM('SYSD.SHOPZ.${instance-MAINT_LVL}.TEST.ZFS')
+/*
+//   IF UNMOUNT.RC NE 0 THEN
+//FAIL     EXEC PGM=IEFBR14
+//   ENDIF
+</inlineTemplate>
+            <submitAs maxRc="0">JCL</submitAs>
+        </template>
+    </step>
+    
+</workflow>
