@@ -100,9 +100,7 @@ Review the output to confirm the deletion or non-existence of the dataset.
         <autoEnable>true</autoEnable>
         <canMarkAsFailed>false</canMarkAsFailed>
         <template>
-            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
-//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
-//********************************************************************
+            <inlineTemplate substitution="true">//********************************************************************
 //* DELETE TEST ZFS DATASET IF IT EXISTS
 //********************************************************************
 //DELETE   EXEC PGM=IDCAMS
@@ -141,9 +139,7 @@ Review the output to confirm successful allocation and formatting.
         <autoEnable>true</autoEnable>
         <canMarkAsFailed>false</canMarkAsFailed>
         <template>
-            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
-//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
-//********************************************************************
+            <inlineTemplate substitution="true">//********************************************************************
 //* ALLOCATE TEST ZFS DATASET (100 MB)
 //********************************************************************
 //ALLOC    EXEC PGM=IDCAMS
@@ -195,9 +191,7 @@ Review the output to confirm successful mounting.
         <autoEnable>true</autoEnable>
         <canMarkAsFailed>false</canMarkAsFailed>
         <template>
-            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
-//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
-//********************************************************************
+            <inlineTemplate substitution="true">//********************************************************************
 //* MOUNT TEST ZFS DATASET
 //********************************************************************
 //MOUNT    EXEC PGM=IKJEFT01,DYNAMNBR=50,REGION=8M
@@ -242,9 +236,7 @@ Review the output to confirm the file was created and verify its contents.
         <autoEnable>true</autoEnable>
         <canMarkAsFailed>false</canMarkAsFailed>
         <template>
-            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
-//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
-//********************************************************************
+            <inlineTemplate substitution="true">//********************************************************************
 //* CREATE TEST FILE WITH CURRENT DATE
 //********************************************************************
 //CREATE   EXEC PGM=IKJEFT01,DYNAMNBR=50,REGION=8M
@@ -298,9 +290,7 @@ Review the output to confirm successful unmounting.
         <autoEnable>true</autoEnable>
         <canMarkAsFailed>false</canMarkAsFailed>
         <template>
-            <inlineTemplate substitution="true">//${instance-USER_ID}J JOB (ACCTINFO),CLASS=A,MSGCLASS=X,
-//         MSGLEVEL=(1,1),REGION=0M,NOTIFY=${instance-USER_ID}
-//********************************************************************
+            <inlineTemplate substitution="true">//********************************************************************
 //* UNMOUNT TEST ZFS DATASET
 //********************************************************************
 //UNMOUNT  EXEC PGM=IKJEFT01,DYNAMNBR=50,REGION=8M
