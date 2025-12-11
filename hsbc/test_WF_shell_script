@@ -4,7 +4,7 @@
 HOST="zosmf-grd1hk.hk.hsbc"
 PORT="32208"
 USER="D33553"
-PASS="wenpump0"            # <- or better: read from SAF/env var
+PASS="xxxxyyyy"            # <- or better: read from SAF/env var
 
 # --- workflow files (your paths) ---
 WFDEF="/u/user/local/D33553/testingPetr/test-workflow-v1.0.xml"
