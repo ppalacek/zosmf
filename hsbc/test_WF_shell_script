@@ -65,3 +65,12 @@ exit ${RC}
  SH /u/user/local/D33553/testingPetr/run_zosmf_workflow.sh
 /*
 
+--- fix1
+RC=$?
+printf 'curl RC=%s\n' "$RC"
+# default to 1 if RC is somehow empty
+[ -z "$RC" ] && RC=1
+exit $RC
+
+---
+
