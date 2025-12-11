@@ -55,3 +55,13 @@ curl -k -X POST \
 RC=$?
 echo "curl RC=${RC}"
 exit ${RC}
+
+//D33553TW JOB 0000,'ZOSMF-WORKFLOW',CLASS=D,MSGCLASS=X,NOTIFY=&SYSUID,
+//             REGION=0M
+//STEP1    EXEC PGM=BPXBATCH,REGION=0M
+//STDOUT   DD SYSOUT=*
+//STDERR   DD SYSOUT=*
+//STDPARM  DD *
+ SH /u/user/local/D33553/testingPetr/run_zosmf_workflow.sh
+/*
+
