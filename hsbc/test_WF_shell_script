@@ -1,0 +1,42 @@
+#!/bin/sh
+
+# --- z/OSMF connection ---
+HOST="zosmf-grd1hk.hk.hsbc"
+PORT="32208"
+USER="D33553"
+PASS="wenpump0"            # <- or better: read from SAF/env var
+
+# --- workflow files (your paths) ---
+WFDEF="/u/user/local/D33553/testingPetr/test-workflow-v1.0.xml"
+VARFILE="/u/user/local/D33553/testingPetr/test-workflow-defaults-v1.0.properties"
+
+WFNAME="Test-Workflow-$(date +%Y%m%d-%H%M%S)"
+
+# build JSON payload for the POST /workflows
+cat > /tmp/create_workflow.json <<EOF
+{
+  "workflowName": "${WFNAME}",
+  "workflowDefinitionFile": "${WFDEF}",
+  "variableInputFile": "${VARFILE}",
+  "system": "SYSD",              // <-- use your real system name
+  "owner": "${USER}",
+  "assignToOwner": true,
+  "accessType": "Public",
+  "accountInfo": "0000",
+  "jobStatement": "//D33553TW JOB 0000,'ZOSMF-WORKFLOW',CLASS=D,MSGCLASS=X,NOTIFY=&SYSUID,\\n//        REGION=0M"
+}
+EOF
+
+echo "Creating workflow ${WFNAME}..."
+
+curl -k -X POST \
+  "https://${HOST}:${PORT}/zosmf/workflow/rest/1.0/workflows" \
+  -H "Content-Type: application/json" \
+  -H "X-CSRF-ZOSMF-HEADER: true" \
+  -u "${USER}:${PASS}" \
+  -d @/tmp/create_workflow.json \
+  | tee /tmp/workflow_create_response.txt
+
+RC=$?
+echo "curl RC=${RC}"
+exit ${RC}
