@@ -27,11 +27,6 @@
         <workflowDescription>Simple Test Workflow for z/OSMF Testing</workflowDescription>
         <workflowVersion>1.0</workflowVersion>
         <vendor>HSBC</vendor>
-        <Provisioning>
-            <productID>5740-XYR00</productID>
-            <productName>IBM z/OS Management Facility</productName>
-            <productVersion>Version 2.4</productVersion>
-        </Provisioning>
     </workflowInfo>
     
     <!-- ====================================================================
