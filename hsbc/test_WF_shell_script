@@ -37,6 +37,21 @@ curl -k -X POST \
   -d @/tmp/create_workflow.json \
   | tee /tmp/workflow_create_response.txt
 
+# extract workflowKey from response
+#WFKEY=$(grep -o '"workflowKey"[[:space:]]*:[[:space:]]*"[^"]*"' \
+#         /tmp/workflow_create_response.txt | sed 's/.*:"//;s/"//')
+
+#echo "workflowKey=${WFKEY}"
+
+#if [ -n "${WFKEY}" ]; then
+#  curl -k -X PUT \
+#    "https://${HOST}:${PORT}/zosmf/workflow/rest/1.0/workflows/${WFKEY}/operations/start" \
+#    -H "Content-Type: application/json" \
+#    -H "X-CSRF-ZOSMF-HEADER: true" \
+#    -u "${USER}:${PASS}" \
+#    -d '{}'
+#fi
+
 RC=$?
 echo "curl RC=${RC}"
 exit ${RC}
