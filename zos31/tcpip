@@ -19,3 +19,63 @@ SSHD6    0000002E 0.0.0.0..22            0.0.0.0..0             LISTEN
 TN3270   0000000E 0.0.0.0..23            0.0.0.0..0             LISTEN     
 DBD1DIST 00000711 0.0.0.0..2723          *..*                   UDP        
 MVSNFSC  00000011 0.0.0.0..1023          *..*                   UDP        
+
+K2.TCPPARMS(PROFILE)     
+K2.TCPPARMS(TCPDATA)     
+
+ ENTRY  FLAGS  VOLUME  DATA SET                  
+   1      S    USRVS1  K2.PARMLIB                
+   2      S    OPEVS1  SYS1.PARMLIB              
+   3      S    Z31VS1  SYS1.PARMLIB.INSTALL      
+
+IEASYMK2
+SYSDEF                                              
+  SYMDEF(&HOMEIPADDRESS1.='192.168.100.150')        
+  SYMDEF(&DEFAULTROUTEADDR.='192.168.100.1')        
+  SYMDEF(&OSAPORTNAME.='OSAFE')                     
+  SYMDEF(&TCPHOSTNAME_.='MACHINE')                  
+  SYMDEF(&NAMESERVERADDR1.='192.168.100.1')         
+  SYMDEF(&NAMESERVERPORT.='53')                     
+  SYMDEF(&VPCVSIIPADDRESS.='192.168.100.150')       
+  SYMDEF(&TCPDOMAIN_.='') 
+
+IEASYM LIST = (00,K2)                                        
+IEASYS LIST = (00) (OP)                                      
+IODF DEVICE: ORIGINAL(0DE28) CURRENT(0DE28)                  
+IPL DEVICE: ORIGINAL(0DE27) CURRENT(0DE27) VOLUME(Z31VS1)    
+
+$HASP319 PROCLIB(PROC00)    DD(1)=(DSNAME=K2.PROCLIB,                 
+$HASP319                    VOLSER=USRVS1),                           
+$HASP319                    DD(2)=(DSNAME=SYS1.PROCLIB,               
+$HASP319                    VOLSER=OPEVS1,UNIT=SYSALLDA),             
+$HASP319                    DD(3)=(DSNAME=SYS1.PROCLIB.INSTALL,       
+$HASP319                    VOLSER=Z31VS1,UNIT=SYSALLDA)          
+
+K2.TCPPARMS(INODES)
+10.1.1.2 maquina            
+127.0.0.1 LOCALHOST         
+
+K2.TCPPARMS(PROFILE)
+INTERFACE OSA1500              
+ DEFINE IPAQENET               
+ IPADDR 192.168.100.150        
+;IPADDR &HOMEIPADDRESS1        
+ PORTNAME &OSAPORTNAME         
+ INBPERF DYNAMIC               
+ PRIROUTER                     
+PRIMARYINTERFACE OSA1500 
+BEGINROUTES                                                      
+;     Destination    First Hop    Link       Packet size         
+ROUTE 192.168.100.0 255.255.255.0 = OSA1500 MTU 1500             
+ROUTE DEFAULT &DEFAULTROUTEADDR          OSA1500 MTU 1500        
+ENDROUTES                                                        
+                   
+START OSA1500     
+
+K2.TCPPARMS(RESSETUP)
+GLOBALTCPIPDATA('K2.TCPPARMS(TCPDATA)')       
+GLOBALIPNODES('K2.TCPPARMS(INODES)')          
+COMMONSEARCH                                  
+
+
+
