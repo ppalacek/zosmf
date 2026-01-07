@@ -1,0 +1,57 @@
+Cool — I’ll turn what you already have (SYSB Wave 4 tests + job outputs) into a clean “test evidence” table in their exact format, with wording you can paste into the RITM/BAU change.
+
+
+Here’s a clean, paste-ready way to raise the **“move SYSB Wave 4 to Production”** request **and** give them the “test evidence” in *their* table format (using what you already have from SYSB).
+
+---
+
+## 1) Paste-ready request text (for the RITM / BAU change)
+
+**Short description / title**
+**LIVQ WAVE 4 – Promote SYSB-tested CICS/Db2 thread reuse RDO updates to Production (RS7P/RSER/RSEV)**
+
+**Description**
+Continuation of the CICS–Db2 thread reuse optimisation project for top CPU CICS transactions.
+Previous request: **REQ34786811 / RITM38185849**.
+This Wave 4 covers transactions **RS7P, RSER, RSEV** in their additional regions.
+
+Wave 4 definitions were **built and tested on SYSB** (dev testing completed) under **REQ35608320 / RITM39156358** and are **ready for production promotion**.
+
+**SYSB test evidence locations**
+
+* Test job/output datasets: **TDM.TDMCEK.CICSEXTR.W9** and **DB2.PUB.RITM6358.OUTPUT**
+* RDO cards validated using DFHCSDUP against a copy of CSD:
+  Source: **COPYL.LCIC.CCVSAM.Q01.DFHCSD**
+  Test CSD: **DB2.PUB.CCVSAM.Q01.DFHCSD.TST**
+  Output retained: **DB2.PUB.RITM6358.OUTPUT (SYSB)**
+
+**Change intent**
+Promote the same verified RDO definitions/cards to Production CSD and implement in production regions as per standard process.
+
+**Backout (simple statement you can use)**
+If any issue occurs, back out by restoring prior production CSD / reverting the applied RDO definitions (standard DFHCSDUP backout / CSD restore).
+
+---
+
+## 2) Test evidence table (fill-in template in their format)
+
+Below is a version you can paste directly (Word/Excel/ServiceNow usually keeps it readable).
+Where I didn’t know a prod dataset name, I left it as a **placeholder**.
+
+| Test Scenario Number | Test Scenario Description                                                            | Requirements Description                                                                                                                                                                                                                     | Expected Result                                                                                              | Actual Result                                                                                                                                                                                                                   | Status | Evidence                                                                                                                                                                                                                    |
+| -------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Scenario-1           | DFHCSDUP offline utility run – apply/validate Wave 4 RDO cards on SYSB test CSD copy | Execute CICS RDO offline utility **DFHCSDUP** against SYSB test CSD copy (**DDNAME DFHCSD → DSNAME DB2.PUB.CCVSAM.Q01.DFHCSD.TST**) using the prepared Wave 4 RDO cards. Verify utility completes successfully and definitions are accepted. | DFHCSDUP completes with **RC=0**, **0 warnings**, **0 errors**; commands processed successfully.             | DFHCSDUP completed successfully. Output shows **COMMANDS EXECUTED SUCCESSFULLY: 33**, **WARNING(S): 0**, **COMMANDS IN ERROR: 0**, **HIGHEST RETURN CODE: 0**. Example message: **DB2ENTRY DB7QI0HE defined in group DB7QI0H**. | Pass   | Screenshot of DFHCSDUP output (your screenshot). Dataset evidence: **DB2.PUB.RITM6358.OUTPUT** (SYSB). DFHCSDUP output includes: Program DFHCSDUP Release 0730 PTF HCI7300; DSNAME **DB2.PUB.CCVSAM.Q01.DFHCSD.TST**; RC=0. |
+| Scenario-2           | Verify Wave 4 job/output evidence is retained and traceable                          | Confirm the test execution artefacts (spool/output) are stored for audit: job outputs and generated evidence retained in SYSB evidence datasets.                                                                                             | Evidence artefacts exist and are accessible (datasets/spool) for audit, and match the Wave 4 change content. | Evidence retained and referenced: **TDM.TDMCEK.CICSEXTR.W9** and **DB2.PUB.RITM6358.OUTPUT**; note states “Output retained on DB2.PUB.RITM6358.OUTPUT on SYSB.”                                                                 | Pass   | Dataset locations: **TDM.TDMCEK.CICSEXTR.W9**, **DB2.PUB.RITM6358.OUTPUT** (SYSB). Attach/link CA-View spool if applicable (optional).                                                                                      |
+| Scenario-3           | Production promotion readiness check (definition consistency)                        | Confirm Wave 4 definitions verified on SYSB and ready to promote “as-is” to Production. (No functional code change; RDO definition change only.)                                                                                             | Definitions verified on SYSB and eligible for production promotion.                                          | SYSB note confirms: “SYSB request WAVE 4 is finished… All ready for production change… All definitions verified on SYSB and we can proceed to production.”                                                                      | Pass   | Attach the SYSB summary note screenshot (“SYSB 4 tested… All definitions verified on SYSB…”). Reference: **REQ35608320 / RITM39156358**.                                                                                    |
+
+**Tip:** If they insist on “functional” evidence too, the fastest add-on after prod change is a tiny “post-implementation validation” row (run RS7P/RSER/RSEV in one prod region + confirm no abends + quick CEDA INQUIRE / thread reuse metric screenshot). But for *pre-prod* evidence, your DFHCSDUP RC=0 + retained outputs is usually what they’re asking for.
+
+---
+
+## 3) What to attach (so it’s bulletproof)
+
+* Your **DFHCSDUP output screenshot** (shows RC=0, warnings 0, errors 0, commands 33, and DSNAME).
+* Your **“SYSB 4 tested / ready for production change”** screenshot.
+* If available: a **CA-View spool reference** or direct pointer to **DB2.PUB.RITM6358.OUTPUT** and **TDM.TDMCEK.CICSEXTR.W9**.
+
+If you want, paste the **production CSD dataset name** (or the prod region naming) and I’ll replace the placeholders and tailor the wording to match your environment’s exact terminology.
