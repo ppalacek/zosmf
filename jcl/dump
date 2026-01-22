@@ -1,0 +1,19 @@
+//STEP0 EXEC PGM=IDCAMS                                           
+//SYSPRINT DD SYSOUT=*                                            
+//SYSIN    DD *                                                   
+  DELETE  SYS1.DUMP.SDSNLOAD.DELETE                               
+  SET MAXCC = 0                                                   
+//STEP1 EXEC PGM=ADRDSSU                                          
+//SYSPRINT DD SYSOUT=*                                            
+//BACKUP   DD DSN=SYS1.DUMP.SDSNLOAD.DELETE,                      
+//             SPACE=(CYL,(50,50),RLSE),                          
+//             UNIT=3390,VOL=SER=(MTLDB5,MTLDB6),                 
+//             DISP=(,CATLG,DELETE)                               
+//SYSIN    DD *                                                   
+  DUMP DATASET(               -                                   
+  INCLUDE(  -                                                     
+       SYS1.DSNC10A.SDSNLOAD                     -                
+                        )       )     -                           
+   OUTDDNAME(BACKUP) CANCELERROR -                                
+    ALLDATA(*) ALLX COMPRESS  SPHERE SHR                          
+/*                                                                
