@@ -1,22 +1,28 @@
- Hi all,
+Hi all,
 
-Thanks for the heads-up on the IBM kickoff for the UKO (“Crypto as a Service”) POC. Unfortunately I can’t attend this initial call, but I’m aligned and can support the **Db2** part once the requirements are confirmed.
+Thanks for the heads-up on the IBM kickoff for the UKO (“Crypto as a Service”) POC. Unfortunately I can’t attend this initial call, but I’m aligned and can support the Db2 part once the requirements are confirmed.
 
-Based on the IBM documentation, it looks like the POC will likely use the **UKO z/OSMF workflow** to provision Db2 (create the required databases, build tables/views from the shipped DDL, and grant access to the UKO Liberty server user). There may also be an optional **bind/package/plan** step if EKMF Workstation access is in scope.
+Based on the IBM documentation, it looks like the POC will likely use the UKO z/OSMF workflow to provision Db2 (create the required databases, build tables/views from the shipped DDL, and grant access to the UKO Liberty server user). There may also be an optional bind/package/plan step if EKMF Workstation access is in scope.
 
 To help keep things moving, could you please capture/confirm the following points during the call and send them over afterwards:
 
-* Which **Db2 subsystem (SSID)** will be used for the POC (and whether it’s server-only or includes EKMF Workstation)?
-* The expected **server STC user / authid** that needs Db2 access (and any client group/role if workstation is required).
-* Any IBM preferences/constraints for **schema/sqlid**, **database names**, **stogroup** and **bufferpools** (or whether defaults are acceptable for test).
-* Whether IBM expects the standard approach via **z/OSMF workflow** end-to-end, or if they want any parts executed via **batch/SPUFI**.
-* Any specific prerequisites they mention around **DDF**, Db2 authorities, or audit/security requirements.
+Which Db2 subsystem (SSID) will be used for the POC (and whether it’s server-only or includes EKMF Workstation)?
+
+The expected server STC user / authid that needs Db2 access (and any client group/role if workstation is required).
+
+Any IBM preferences/constraints for schema/sqlid, database names, stogroup and bufferpools (or whether defaults are acceptable for test).
+
+Whether IBM expects the standard approach via z/OSMF workflow end-to-end, or if they want any parts executed via batch/SPUFI.
+
+Any specific prerequisites they mention around DDF, Db2 authorities, or audit/security requirements.
 
 Once I have that info, I can:
 
-* Do a quick **Db2 readiness check** on the test subsystem (bufferpools/stogroup, required authorities, install datasets/HLQs),
-* Prepare the workflow variable set / properties for your environment,
-* And support execution of the Db2 steps (DDL, grants, and binds if needed).
+Do a quick Db2 readiness check on the test subsystem (bufferpools/stogroup, required authorities, install datasets/HLQs),
+
+Prepare the workflow variable set / properties for your environment,
+
+And support execution of the Db2 steps (DDL, grants, and binds if needed).
 
 Feel free to loop me in after the meeting with the notes and I’ll pick up the Db2 actions straight away.
 
